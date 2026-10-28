@@ -1,11 +1,10 @@
 """Chunk the public IBM z/OS 3.1 manuals: one chunk per abend code or message entry.
 
-Run: python -m ingest.ibm   (downloads the PDFs into data/raw/ibm if missing, writes data/chunks/ibm.jsonl)
+Run: python -m ingest.ibm   (reads the PDFs from data/raw/ibm, writes data/chunks/ibm.jsonl)
 """
 
 import json
 import re
-import urllib.request
 from pathlib import Path
 
 RAW = Path("data/raw/ibm")
@@ -89,10 +88,8 @@ def load_pages(name: str) -> list[str]:
         return json.loads(cache.read_text(encoding="utf-8"))
     from pypdf import PdfReader
     if not pdf.exists():
-        RAW.mkdir(parents=True, exist_ok=True)
-        tmp = pdf.with_suffix(".part")
-        urllib.request.urlretrieve(BASE + name, tmp)
-        tmp.rename(pdf)
+        # ibm.com refuses scripted downloads, so the PDFs are put here by hand (see README).
+        raise SystemExit(f"Missing {pdf}. Download {BASE + name} in a browser and save it there.")
     pages = [p.extract_text() or "" for p in PdfReader(pdf).pages]
     cache.write_text(json.dumps(pages), encoding="utf-8")
     return pages
