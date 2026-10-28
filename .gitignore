@@ -5,8 +5,7 @@ __pycache__/
 .env
 
 # built or downloaded at deploy time
-data/raw/
-data/index/
+data/
 
 node_modules/
 web/dist/
