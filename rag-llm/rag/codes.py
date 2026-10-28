@@ -8,7 +8,9 @@ import re
 from functools import lru_cache
 from pathlib import Path
 
-IBM_CHUNKS = Path("data/chunks/ibm.jsonl")
+DATA = Path(__file__).resolve().parents[1] / "data"  # rag-llm/data, whatever the working directory
+
+IBM_CHUNKS = DATA / "chunks/ibm.jsonl"
 
 # In questions: S0C7, SOC7 (letter O typo), SB37, S806-04, "abend 0C4", "ABEND=S322", IEF450I.
 SYSTEM_RE = re.compile(r"\bS([0-9A-F]{3})(?:-[0-9A-F]{2})?\b")

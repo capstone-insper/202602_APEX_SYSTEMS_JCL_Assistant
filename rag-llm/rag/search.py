@@ -3,9 +3,11 @@
 from functools import lru_cache
 from pathlib import Path
 
+DATA = Path(__file__).resolve().parents[1] / "data"  # rag-llm/data, whatever the working directory
+
 import chromadb
 
-INDEX = Path("data/index")
+INDEX = DATA / "index"
 COLLECTION = "corpus"
 CORPORA = {"jcl": ["jcl_step", "jcl_job"], "ibm": ["ibm_code", "ibm_message"]}
 

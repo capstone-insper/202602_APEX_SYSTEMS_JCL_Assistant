@@ -11,10 +11,12 @@ import json
 import shutil
 from pathlib import Path
 
+DATA = Path(__file__).resolve().parents[1] / "data"  # rag-llm/data, whatever the working directory
+
 import chromadb
 
-CHUNKS = [Path("data/chunks/jcl.jsonl"), Path("data/chunks/ibm.jsonl")]
-INDEX = Path("data/index")
+CHUNKS = [DATA / "chunks/jcl.jsonl", DATA / "chunks/ibm.jsonl"]
+INDEX = DATA / "index"
 COLLECTION = "corpus"
 PART_CHARS = 700  # ponytail: rough fit for the model's 256-token window; tune if retrieval misses
 
