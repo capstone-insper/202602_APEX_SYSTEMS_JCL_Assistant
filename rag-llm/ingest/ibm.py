@@ -7,8 +7,10 @@ import json
 import re
 from pathlib import Path
 
-RAW = Path("data/raw/ibm")
-OUT = Path("data/chunks/ibm.jsonl")
+DATA = Path(__file__).resolve().parents[1] / "data"  # rag-llm/data, whatever the working directory
+
+RAW = DATA / "raw/ibm"
+OUT = DATA / "chunks/ibm.jsonl"
 BASE = "https://www.ibm.com/docs/en/SSLTBW_3.1.0/pdf/"
 
 BOOKS = [

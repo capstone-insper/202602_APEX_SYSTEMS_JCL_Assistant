@@ -9,13 +9,15 @@ import shutil
 import subprocess
 from pathlib import Path
 
+DATA = Path(__file__).resolve().parents[1] / "data"  # rag-llm/data, whatever the working directory
+
 CARDDEMO_URL = "https://github.com/aws-samples/aws-mainframe-modernization-carddemo"
 CARDDEMO_SHA = "59cc6c2fd7ebd7ef7925cad552a01a4b8b6e4d5e"
 JCL_DIRS = ["app/jcl", "app/proc", "app/app-authorization-ims-db2-mq/jcl",
             "app/app-transaction-type-db2/jcl", "samples/jcl", "samples/proc"]
 
-RAW = Path("data/raw/carddemo")
-OUT = Path("data/chunks/jcl.jsonl")
+RAW = DATA / "raw/carddemo"
+OUT = DATA / "chunks/jcl.jsonl"
 
 EXEC_RE = re.compile(r"^//([A-Z0-9@#$]*)\s+EXEC\s+(\S+)")
 HEAD_RE = re.compile(r"^//([A-Z0-9@#$]+)\s+(JOB|PROC)\b")

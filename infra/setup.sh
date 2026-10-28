@@ -26,29 +26,29 @@ fi
 
 cd "$APP"
 sudo -u "$USER_NAME" python3.11 -m venv .venv
-sudo -u "$USER_NAME" .venv/bin/pip install -q -r requirements.txt
+sudo -u "$USER_NAME" .venv/bin/pip install -q -r backend/requirements.txt  # pulls in rag-llm/requirements.txt
 
 # The IBM PDFs: ibm.com refuses scripted downloads, so they live in a private S3 bucket,
 # uploaded once by hand. Example: sudo IBM_PDFS_S3=s3://my-bucket/ibm/ bash setup.sh
 if [ -n "${IBM_PDFS_S3:-}" ]; then
-  sudo -u "$USER_NAME" mkdir -p data/raw/ibm
-  sudo -u "$USER_NAME" aws s3 cp "$IBM_PDFS_S3" data/raw/ibm/ --recursive --exclude "*" --include "*.pdf" --only-show-errors
+  sudo -u "$USER_NAME" mkdir -p rag-llm/data/raw/ibm
+  sudo -u "$USER_NAME" aws s3 cp "$IBM_PDFS_S3" rag-llm/data/raw/ibm/ --recursive --exclude "*" --include "*.pdf" --only-show-errors
 fi
 
-# Corpus and index (~10 min the first time; the downloads are cached in data/raw).
-# The rebuild deletes data/index, so the API is down until the end of the script.
+# Corpus and index (~10 min the first time; the downloads are cached in rag-llm/data/raw).
+# The rebuild deletes rag-llm/data/index, so the API is down until the end of the script.
 systemctl stop jcl-assistant 2>/dev/null || true
 for step in ingest.jcl ingest.ibm ingest.index; do
-  sudo -u "$USER_NAME" .venv/bin/python -m "$step"
+  sudo -u "$USER_NAME" bash -c "cd rag-llm && ../.venv/bin/python -m $step"
 done
 
 # Frontend: build it if it is in the repo, otherwise a placeholder that points to the API page.
-if [ -f web/package.json ]; then
+if [ -f frontend/package.json ]; then
   dnf install -y -q nodejs npm  # ponytail: AL2023 default Node; pin nodejs20 if the Vite build needs it
-  sudo -u "$USER_NAME" bash -c "cd web && npm ci --silent && npm run build --silent"
+  sudo -u "$USER_NAME" bash -c "cd frontend && npm ci --silent && npm run build --silent"
 else
-  install -d -o "$USER_NAME" web/dist
-  echo '<!doctype html><title>JCL Assistant</title><p>UI not deployed yet. Try the API at <a href="/docs">/docs</a>.' > web/dist/index.html
+  install -d -o "$USER_NAME" frontend/dist
+  echo '<!doctype html><title>JCL Assistant</title><p>UI not deployed yet. Try the API at <a href="/docs">/docs</a>.' > frontend/dist/index.html
 fi
 
 cat > /etc/systemd/system/jcl-assistant.service <<EOF
@@ -58,8 +58,9 @@ After=network-online.target
 
 [Service]
 User=$USER_NAME
-WorkingDirectory=$APP
+WorkingDirectory=$APP/backend
 Environment=AWS_REGION=us-east-1
+Environment=PYTHONPATH=$APP/rag-llm
 ExecStart=$APP/.venv/bin/uvicorn api.main:app --host 127.0.0.1 --port 8000
 Restart=always
 
@@ -77,7 +78,7 @@ server {
     # default_server wins over the stock server in nginx.conf for requests by IP
     listen 80 default_server;
     listen [::]:80 default_server;
-    root $APP/web/dist;
+    root $APP/frontend/dist;
 
     location / { try_files \$uri /index.html; }
 
@@ -90,7 +91,7 @@ server {
     location ~ ^/(docs|openapi.json)$ { proxy_pass http://127.0.0.1:8000; }
 }
 EOF
-chmod o+x /opt "$APP"  # nginx must reach web/dist
+chmod o+x /opt "$APP"  # nginx must reach frontend/dist
 
 nginx -t
 systemctl daemon-reload

@@ -8,13 +8,13 @@ Apex Systems use case 2, built by the Insper and Missouri S&T teams.
 
 | Folder | What |
 |---|---|
-| `ingest/` | Download and chunk the corpus, build the index |
-| `rag/` | Retrieval, exact code lookup, prompt, `answer()` |
-| `api/` | FastAPI `POST /ask` |
-| `web/` (planned) | React chat |
-| `eval/` (planned) | Test scenarios and evaluation script |
+| `frontend/` | React chat (planned) |
+| `backend/` | FastAPI `POST /ask` |
+| `rag-llm/` | Corpus ingestion, index, exact code lookup, retrieval and the Claude call (`answer()`) |
 | `infra/` | EC2 setup script |
-| `tests/` | Unit tests |
+| `eval/` (planned) | Test scenarios and evaluation script |
+
+`backend` imports `rag` from `rag-llm`; the corpus and index live in `rag-llm/data` (not in git).
 
 ## The /ask contract
 
@@ -34,23 +34,31 @@ The full schema is served at `/docs` when the API runs.
 
 ## Run locally
 
+One virtual environment at the repo root serves both Python folders.
+
 ```
 python -m venv .venv
 .venv/Scripts/activate      # Windows; on Linux/macOS: source .venv/bin/activate
-pip install -r requirements.txt
-pytest
+pip install -r backend/requirements.txt    # includes rag-llm/requirements.txt
 
+cd rag-llm
+pytest
 python -m ingest.jcl        # clone CardDemo, chunk the JCL      -> data/chunks/jcl.jsonl
-python -m ingest.ibm        # download the IBM manuals, chunk     -> data/chunks/ibm.jsonl
+python -m ingest.ibm        # chunk the IBM manuals (PDFs in data/raw/ibm) -> data/chunks/ibm.jsonl
 python -m ingest.index      # embed and index (~4 min)            -> data/index
 
-JCL_ASSISTANT_STUB=1 uvicorn api.main:app --reload   # fixed answer, no AWS needed
+cd ../backend
+pytest
+PYTHONPATH=../rag-llm JCL_ASSISTANT_STUB=1 uvicorn api.main:app --reload   # fixed answer, no AWS needed
 ```
+
+On Windows PowerShell, set the variables first: `$env:PYTHONPATH="../rag-llm"; $env:JCL_ASSISTANT_STUB="1"`.
 
 Real answers call Claude Sonnet 4.5 on Amazon Bedrock and need AWS credentials. On the server
 they come from the EC2 instance role; no key is stored in the code or the repo.
 
 ```
+cd rag-llm
 python -m rag.answer "STEP15 in POSTTRAN ended with S0C7, why?"
 ```
 
@@ -69,5 +77,5 @@ sudo nohup env IBM_PDFS_S3=s3://<bucket>/ibm/ bash /tmp/setup.sh > /tmp/setup.lo
 tail -f /tmp/setup.log
 ```
 
-Run it again to update. nginx serves `web/dist` on port 80 and proxies `/ask` and `/docs`, with a
+Run it again to update. nginx serves `frontend/dist` on port 80 and proxies `/ask` and `/docs`, with a
 rate limit on `/ask` because each call costs a Bedrock request.
