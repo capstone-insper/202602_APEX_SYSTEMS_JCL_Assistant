@@ -8,7 +8,7 @@ Apex Systems use case 2, built by the Insper and Missouri S&T teams.
 
 | Folder | What |
 |---|---|
-| `frontend/` | React chat (planned) |
+| `frontend/` | React chat: history, answer with clickable citations, sources panel |
 | `backend/` | FastAPI `POST /ask` |
 | `rag-llm/` | Corpus ingestion, index, exact code lookup, retrieval and the Claude call (`answer()`) |
 | `infra/` | EC2 setup script |
@@ -50,6 +50,14 @@ python -m ingest.index      # embed and index (~4 min)            -> data/index
 cd ../backend
 pytest
 PYTHONPATH=../rag-llm JCL_ASSISTANT_STUB=1 uvicorn api.main:app --reload   # fixed answer, no AWS needed
+```
+
+Then the chat, in another terminal (Node 20.19+ or 22.12+):
+
+```
+cd frontend
+npm ci
+npm run dev        # http://localhost:5173, proxies /ask to the API on :8000
 ```
 
 On Windows PowerShell, set the variables first: `$env:PYTHONPATH="../rag-llm"; $env:JCL_ASSISTANT_STUB="1"`.
