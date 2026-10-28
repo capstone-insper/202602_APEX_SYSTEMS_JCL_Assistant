@@ -1,0 +1,11 @@
+.venv/
+__pycache__/
+.pytest_cache/
+*.pyc
+.env
+
+# built or downloaded at deploy time
+data/
+
+node_modules/
+frontend/dist/
