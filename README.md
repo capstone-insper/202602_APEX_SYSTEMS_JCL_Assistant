@@ -8,7 +8,7 @@ Apex Systems use case 2, built by the Insper and Missouri S&T teams.
 
 | Folder | What |
 |---|---|
-| `ingest/` (planned) | Download and chunk the corpus, build the index |
+| `ingest/` | Download and chunk the corpus, build the index |
 | `rag/` | Retrieval, exact code lookup, prompt, `answer()` |
 | `api/` | FastAPI `POST /ask` |
 | `web/` (planned) | React chat |
@@ -39,7 +39,19 @@ python -m venv .venv
 .venv/Scripts/activate      # Windows; on Linux/macOS: source .venv/bin/activate
 pip install -r requirements.txt
 pytest
-uvicorn api.main:app --reload
+
+python -m ingest.jcl        # clone CardDemo, chunk the JCL      -> data/chunks/jcl.jsonl
+python -m ingest.ibm        # download the IBM manuals, chunk     -> data/chunks/ibm.jsonl
+python -m ingest.index      # embed and index (~4 min)            -> data/index
+
+JCL_ASSISTANT_STUB=1 uvicorn api.main:app --reload   # fixed answer, no AWS needed
 ```
 
-The answer is a fixed stub until the RAG is connected.
+Real answers call Claude Sonnet 4.5 on Amazon Bedrock and need AWS credentials. On the server
+they come from the EC2 instance role; no key is stored in the code or the repo.
+
+```
+python -m rag.answer "STEP15 in POSTTRAN ended with S0C7, why?"
+```
+
+`BEDROCK_MODEL_ID` and `AWS_REGION` override the defaults (`us.anthropic.claude-sonnet-4-5-20250929-v1:0`, `us-east-1`).

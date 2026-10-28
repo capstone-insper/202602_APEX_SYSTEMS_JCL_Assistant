@@ -1,4 +1,5 @@
-from fastapi import FastAPI
+from botocore.exceptions import BotoCoreError, ClientError
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
 from rag.answer import answer
@@ -24,4 +25,7 @@ class AskResponse(BaseModel):
 
 @app.post("/ask", response_model=AskResponse)
 def ask(req: AskRequest) -> dict:
-    return answer(req.question)
+    try:
+        return answer(req.question)
+    except (BotoCoreError, ClientError) as e:  # throttling, AccessDenied, timeout
+        raise HTTPException(502, "The model is unavailable, try again.") from e

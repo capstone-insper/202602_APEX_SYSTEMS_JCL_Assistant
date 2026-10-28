@@ -5,7 +5,8 @@ from api.main import app
 client = TestClient(app)
 
 
-def test_ask_returns_contract_shape():
+def test_ask_returns_contract_shape(monkeypatch):
+    monkeypatch.setenv("JCL_ASSISTANT_STUB", "1")  # no AWS in tests
     r = client.post("/ask", json={"question": "STEP15 ended S0C7, why?"})
     assert r.status_code == 200
     assert set(r.json()) == {"answer", "codes", "citations"}
