@@ -1,0 +1,122 @@
+# Test set v1: ten questions an operator could ask about the CardDemo batch jobs.
+#
+# question         what is sent to POST /ask, as typed or pasted from the job log
+# expected_cause   the right answer in one or two sentences, for the person reviewing the results
+# keywords         groups of terms; the answer must contain at least one term of every group
+#                  (case-insensitive). A quick first pass, not a replacement for the review.
+# sources          every one must be among the citations. A JCL file by its path; an IBM entry by
+#                  book and code (S0C7 also matches the grouped 0Cx entry).
+# not_found: true  the right answer is "Not found in the docs." with no citations
+#
+# Job names, steps, programs and DD names are the real ones in CardDemo (app/jcl).
+
+scenarios:
+  - id: jcl-posttran
+    kind: jcl
+    question: What does the POSTTRAN job do?
+    expected_cause: >-
+      One step, STEP15, runs CBTRN02C. It reads the daily transaction file (DALYTRAN), posts the
+      valid transactions to the transaction master (TRANFILE) and the category balances (TCATBALF),
+      and writes the rejected ones to a new generation of DALYREJS.
+    keywords: [[CBTRN02C], [DALYTRAN, daily transaction], [DALYREJS, reject]]
+    sources:
+      - source: carddemo/app/jcl/POSTTRAN.jcl
+
+  - id: jcl-intcalc
+    kind: jcl
+    question: What does the INTCALC job do, and what is the PARM on STEP15 for?
+    expected_cause: >-
+      STEP15 runs CBACT04C, the interest calculator. It reads the transaction category balances
+      (TCATBALF), accounts and disclosure groups, and writes the interest transactions to a new
+      generation of SYSTRAN. The PARM passes the run date to the program (2022071800).
+    keywords: [[CBACT04C], [interest], [PARM, date]]
+    sources:
+      - source: carddemo/app/jcl/INTCALC.jcl
+
+  - id: jcl-closefil
+    kind: jcl
+    question: What does CLOSEFIL do and why would I run it before the batch?
+    expected_cause: >-
+      It runs SDSF in batch to send CEMT SET FIL(...) CLO commands to the CICS region (CICSAWSA),
+      closing the CardDemo VSAM files in CICS so the batch jobs can open them.
+    keywords: [[SDSF], [CEMT], [CICS], [clos]]
+    sources:
+      - source: carddemo/app/jcl/CLOSEFIL.jcl
+
+  - id: abend-s0c7-posttran
+    kind: abend
+    question: |-
+      Our nightly run failed. What happened and how do I fix it?
+      IEF450I POSTTRAN STEP15 - ABEND=S0C7 U0000 REASON=00000000
+    expected_cause: >-
+      Data exception: a decimal (packed) instruction ran on a field with invalid data. In POSTTRAN
+      it points at a bad record in the daily transaction input of CBTRN02C. Fix the record and
+      rerun the step.
+    keywords: [[data exception], [packed, decimal, numeric]]
+    sources:
+      - source: z/OS MVS System Codes
+        code: 0C7
+
+  - id: abend-s0c4-intcalc
+    kind: abend
+    question: INTCALC ended with S0C4 in STEP15. What does that mean?
+    expected_cause: >-
+      Protection exception: CBACT04C addressed storage it may not use, often a bad subscript or
+      index, a record layout that does not match the file, or a call with wrong parameters.
+    keywords: [[protection, storage], [subscript, index, address, layout]]
+    sources:
+      - source: z/OS MVS System Codes
+        code: 0C4
+
+  - id: abend-s806
+    kind: abend
+    question: |-
+      IEF450I INTCALC STEP15 - ABEND=S806 U0000 REASON=00000004
+    expected_cause: >-
+      The system could not find the program to load (CBACT04C). Check the PGM name and that the
+      load module is in AWS.M2.CARDDEMO.LOADLIB, the STEPLIB of the step.
+    keywords: [[not found, could not be found, not located, find], [STEPLIB, LOADLIB, library]]
+    sources:
+      - source: z/OS MVS System Codes
+        code: "806"
+
+  - id: abend-s322-creastmt
+    kind: abend
+    question: CREASTMT abended S322 in STEP040. How do I fix it?
+    expected_cause: >-
+      The step used more CPU time than allowed (the TIME limit of the job or step, or the class
+      default). Look for a loop in CBSTM03A or raise TIME if the volume is legitimately larger.
+    keywords: [[time], [TIME, limit, exceeded, loop]]
+    sources:
+      - source: z/OS MVS System Codes
+        code: "322"
+
+  - id: msg-ief212i-dalytran
+    kind: message
+    question: "IEF212I POSTTRAN STEP15 DALYTRAN - DATA SET NOT FOUND"
+    expected_cause: >-
+      The data set on the DALYTRAN DD (AWS.M2.CARDDEMO.DALYTRAN.PS) is not in the catalog. Check
+      the name or create the daily transaction file before running POSTTRAN.
+    keywords: [[not found, not cataloged, does not exist, catalog], [DALYTRAN]]
+    sources:
+      - source: z/OS MVS System Messages, Vol 8 (IEF-IGD)
+        code: IEF212I
+
+  - id: jcl-error-ief453i
+    kind: message
+    question: My job did not even start, the log says IEF453I CREASTMT - JOB FAILED - JCL ERROR. What now?
+    expected_cause: >-
+      The system rejected the JCL before running any step. The message just before it in the job
+      log (JESYSMSG) names the statement and the error; fix that statement and resubmit.
+    keywords: [[JCL error, JCL], [message, JESYSMSG, job log, statement]]
+    sources:
+      - source: z/OS MVS System Messages, Vol 8 (IEF-IGD)
+        code: IEF453I
+
+  - id: not-found-rexx
+    kind: not_found
+    question: How do I write a REXX exec that lists all my data sets?
+    expected_cause: >-
+      Out of scope: REXX is not in the CardDemo JCL nor in the IBM codes and messages manuals, so
+      the assistant must say it was not found instead of answering from general knowledge.
+    not_found: true
