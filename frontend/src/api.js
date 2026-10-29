@@ -1,19 +1,30 @@
-// POST /ask: {question} -> {answer, codes[], citations[{source, locator, snippet}]}.
+// POST /ask: {question, history?} -> {answer, codes[], citations[{source, locator, snippet}]}.
 // The [n] markers in answer point at citations[n-1].
 
 export const NOT_FOUND = 'Not found in the docs.'
+
+// history: earlier exchanges of the chat, oldest first. The API takes 10 (and uses the last 3).
+const HISTORY_TURNS = 10
+const ANSWER_CHARS = 8000
+
+// Answered turns only: a network or service error has no answer to send; "Not found" does.
+export const historyFor = (turns) =>
+  turns
+    .filter((t) => t.status === 'done' && t.result)
+    .slice(-HISTORY_TURNS)
+    .map((t) => ({ question: t.question, answer: t.result.answer.slice(0, ANSWER_CHARS) }))
 
 // A bit over nginx's proxy_read_timeout (120 s, infra/setup.sh), so its 504 normally comes first.
 const TIMEOUT_MS = 130_000
 const SLOW = 'The answer took too long (the model may be busy). Try again.'
 
-export async function ask(question) {
+export async function ask(question, history = []) {
   let r
   try {
     r = await fetch('/ask', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ question }),
+      body: JSON.stringify(history.length ? { question, history } : { question }),
       signal: AbortSignal.timeout(TIMEOUT_MS),
     })
   } catch (e) {
