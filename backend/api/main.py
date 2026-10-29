@@ -7,8 +7,14 @@ from rag.answer import answer
 app = FastAPI(title="JCL Analyzer & Abend Assistant")
 
 
+class Turn(BaseModel):
+    question: str = Field(max_length=4000)
+    answer: str = Field(max_length=8000)
+
+
 class AskRequest(BaseModel):
     question: str = Field(min_length=1, max_length=4000)
+    history: list[Turn] = Field(default_factory=list, max_length=10)  # earlier turns, oldest first
 
 
 class Citation(BaseModel):
@@ -26,6 +32,6 @@ class AskResponse(BaseModel):
 @app.post("/ask", response_model=AskResponse)
 def ask(req: AskRequest) -> dict:
     try:
-        return answer(req.question)
+        return answer(req.question, history=[t.model_dump() for t in req.history])
     except (BotoCoreError, ClientError) as e:  # throttling, AccessDenied, timeout
         raise HTTPException(502, "The model is unavailable, try again.") from e

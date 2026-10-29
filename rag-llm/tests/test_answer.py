@@ -119,3 +119,15 @@ def test_same_entry_other_part_is_sent_with_same_number(monkeypatch):
     ra.answer("S0C7", client=fake)
     sent = fake.calls[1]["messages"][2]["content"][0]["toolResult"]["content"][0]["text"]
     assert sent.startswith("[1] z/OS MVS System Codes | 0Cx, p. 194 \n") and "0C4\nProtection." in sent
+
+
+def test_history_goes_before_the_question_without_old_markers(monkeypatch):
+    setup(monkeypatch)
+    turns = [{"question": f"q{i}", "answer": f"a{i} [1]"} for i in range(5)] + [{"question": "", "answer": "x"}]
+    fake = FakeBedrock(text_reply("Not found in the docs."))
+    ra.answer("what does line 41 do?", client=fake, history=turns)
+
+    sent = fake.calls[0]["messages"]
+    texts = [(m["role"], m["content"][0]["text"]) for m in sent[:4]]
+    assert texts == [("user", "q3"), ("assistant", "a3"), ("user", "q4"), ("assistant", "a4")]
+    assert sent[4]["role"] == "user" and sent[4]["content"][0]["text"].startswith("what does line 41 do?")

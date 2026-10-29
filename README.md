@@ -30,6 +30,9 @@ POST /ask
 }
 ```
 
+Optional `history`: the earlier turns of the chat, oldest first, as `[{"question": "...", "answer": "..."}]`,
+so a follow-up like "what does line 41 do?" keeps its context. The last 3 turns are sent to the model.
+
 The full schema is served at `/docs` when the API runs.
 
 ## Run locally

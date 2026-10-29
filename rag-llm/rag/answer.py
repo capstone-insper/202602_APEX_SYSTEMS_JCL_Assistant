@@ -129,7 +129,24 @@ def _run_tool(name: str, args: dict, sources: _Sources, codes: list[str]) -> str
     return f"Unknown tool {name}."
 
 
-def answer(question: str, client=None) -> dict:
+HISTORY_TURNS = 3  # earlier turns sent to the model, so "what does line 41 do?" has context
+HISTORY_CHARS = 2000
+
+
+def _history_messages(history: list[dict] | None) -> list[dict]:
+    """Earlier turns as user/assistant pairs. Their [n] markers are dropped: the numbers
+    restart in every turn, so an old [1] would point at this turn's first source."""
+    out = []
+    for turn in (history or [])[-HISTORY_TURNS:]:
+        q = (turn.get("question") or "").strip()
+        a = re.sub(r"\[\d+\]", "", turn.get("answer") or "").strip()[:HISTORY_CHARS]
+        if q and a:  # Bedrock rejects empty text blocks
+            out += [{"role": "user", "content": [{"text": q}]},
+                    {"role": "assistant", "content": [{"text": a}]}]
+    return out
+
+
+def answer(question: str, client=None, history: list[dict] | None = None) -> dict:
     if os.environ.get("JCL_ASSISTANT_STUB") == "1":
         return STUB
     client = client or _bedrock()
@@ -142,7 +159,8 @@ def answer(question: str, client=None) -> dict:
     context = sources.add(found) if found else "No codes detected in the question."
     if missing:
         context += "\nNo IBM entry in the corpus for: " + ", ".join(missing)
-    messages = [{"role": "user", "content": [{"text": f"{question}\n\nSources:\n{context}"}]}]
+    messages = _history_messages(history) + [
+        {"role": "user", "content": [{"text": f"{question}\n\nSources:\n{context}"}]}]
 
     for _ in range(MAX_TURNS):
         resp = client.converse(modelId=MODEL_ID, system=[{"text": SYSTEM}], messages=messages,
