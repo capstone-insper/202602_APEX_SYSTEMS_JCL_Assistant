@@ -1,16 +1,28 @@
-# React + Vite
+# frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+React (Vite) chat that calls `POST /ask`. Three columns: chat history, the conversation, and the
+sources cited by the selected answer. See the [root README](../README.md) for the `/ask` contract.
 
-Currently, two official plugins are available:
+| File | What |
+|---|---|
+| `src/api.js` | The `/ask` call and its error messages (timeout, rate limit, service down) |
+| `src/detect.js` | Codes, job and step recognised in what the user types (same rules as `rag-llm/rag/codes.py`) |
+| `src/format.js` | Answer text to paragraphs, lists and code blocks; answer to plain text for copying |
+| `src/chats.js` | Chat history in `localStorage` (this browser only, last 50 chats) |
+| `src/components/` | `Sidebar`, `Thread` (questions, answers, composer), `Sources`, `Tags` |
+| `test/` | Unit tests for `detect.js` and `format.js` (`node:test`, no extra dependency) |
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Run
 
-## React Compiler
+Needs Node 20.19+ or 22.12+ (Vite 8). Start the backend first (root README), then:
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+```
+npm ci
+npm run dev        # http://localhost:5173; /ask and /docs are proxied to http://127.0.0.1:8000
+npm test
+npm run lint
+npm run build      # -> dist/, served by nginx on the server
+```
 
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+`API_URL=http://host:port npm run dev` points the proxy at another backend. With the backend in
+stub mode (`JCL_ASSISTANT_STUB=1`) every question gets the same fixed answer, with no citations.
