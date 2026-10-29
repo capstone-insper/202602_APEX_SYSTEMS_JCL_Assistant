@@ -15,6 +15,7 @@ USER_NAME=jcl
 dnf install -y -q git python3.11 nginx
 
 id "$USER_NAME" >/dev/null 2>&1 || useradd --system --create-home --home-dir /var/lib/jcl "$USER_NAME"
+install -d -m 700 -o "$USER_NAME" /var/lib/jcl  # holds jcl.db: password hashes and sessions
 [ -d "$APP/.git" ] || rm -rf "$APP"  # a half-done first clone would block every re-run
 if [ -d "$APP/.git" ]; then
   sudo -u "$USER_NAME" git -C "$APP" fetch -q origin "$BRANCH"
@@ -61,6 +62,12 @@ User=$USER_NAME
 WorkingDirectory=$APP/backend
 Environment=AWS_REGION=us-east-1
 Environment=PYTHONPATH=$APP/rag-llm
+# Accounts and sessions, outside the repo so updates and index rebuilds keep them.
+Environment=JCL_DB=/var/lib/jcl/jcl.db
+# 1 only behind HTTPS; the POC is plain HTTP (see "Authentication" in the README).
+Environment=JCL_COOKIE_SECURE=0
+# Files the service creates (jcl.db and its journal) are readable by the jcl user only.
+UMask=0077
 ExecStart=$APP/.venv/bin/uvicorn api.main:app --host 127.0.0.1 --port 8000
 Restart=always
 
@@ -72,6 +79,8 @@ cat > /etc/nginx/conf.d/jcl-assistant.conf <<EOF
 # Each question costs a Bedrock call: cap it per client IP and in total.
 limit_req_zone \$binary_remote_addr zone=ask:1m rate=10r/m;
 limit_req_zone \$server_name zone=askall:1m rate=60r/m;
+# Password guessing: on top of the API's lockout (5 wrong passwords lock an account for 15 min).
+limit_req_zone \$binary_remote_addr zone=login:1m rate=5r/m;
 limit_req_status 429;
 
 server {
@@ -88,6 +97,11 @@ server {
         proxy_pass http://127.0.0.1:8000;
         proxy_read_timeout 120s;
     }
+    location = /auth/login {
+        limit_req zone=login burst=5 nodelay;
+        proxy_pass http://127.0.0.1:8000;
+    }
+    location /auth/ { proxy_pass http://127.0.0.1:8000; }
     location ~ ^/(docs|openapi.json)$ { proxy_pass http://127.0.0.1:8000; }
 }
 EOF
@@ -97,4 +111,6 @@ nginx -t
 systemctl daemon-reload
 systemctl enable jcl-assistant nginx
 systemctl restart jcl-assistant nginx
-echo "Done. Open http://<this machine's public IP>/docs"
+echo "Done. Open http://<this machine's public IP>/"
+echo "Create an account (no sign-up page):"
+echo "  sudo -u $USER_NAME env JCL_DB=/var/lib/jcl/jcl.db bash -c 'cd $APP/backend && ../.venv/bin/python -m api.users add <email> --name \"<Name>\"'"

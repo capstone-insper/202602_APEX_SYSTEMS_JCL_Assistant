@@ -4,7 +4,10 @@ Two scores per scenario:
   source_ok  every expected source is among the citations (for not_found: no citations)
   answer_ok  the answer has a term of every keyword group (for not_found: "Not found in the docs.")
 
-Run from the repo root, with the API up (stub or real):
+Run from the repo root, with the API up (stub or real). /ask needs a session, so the script
+signs in first with an account made by python -m api.users:
+  export JCL_EVAL_EMAIL=eval@company.com
+  read -s JCL_EVAL_PASSWORD && export JCL_EVAL_PASSWORD     # not in the shell history
   python eval/run_eval.py                                  # http://localhost:8000
   python eval/run_eval.py --url http://<ec2-host> --only abend-s0c7-posttran
 
@@ -14,7 +17,9 @@ costs about $0.04 on Bedrock.
 
 import argparse
 import csv
+import http.cookiejar
 import json
+import os
 import time
 import urllib.error
 import urllib.request
@@ -27,13 +32,31 @@ HERE = Path(__file__).resolve().parent
 NOT_FOUND = "Not found in the docs"
 TIMEOUT_S = 130  # same as the chat (frontend/src/api.js)
 
+# Keeps the session cookie from /auth/login for every /ask, like the browser does.
+opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
+
+
+def post(url: str, path: str, body: dict) -> dict:
+    req = urllib.request.Request(url.rstrip("/") + path, method="POST", data=json.dumps(body).encode(),
+                                 headers={"Content-Type": "application/json"})
+    with opener.open(req, timeout=TIMEOUT_S) as r:
+        return json.load(r)
+
+
+def sign_in(url: str) -> None:
+    email, password = os.environ.get("JCL_EVAL_EMAIL"), os.environ.get("JCL_EVAL_PASSWORD")
+    if not (email and password):
+        raise SystemExit("Set JCL_EVAL_EMAIL and JCL_EVAL_PASSWORD (an account from python -m api.users).")
+    try:
+        post(url, "/auth/login", {"email": email, "password": password})
+    except urllib.error.HTTPError as e:
+        raise SystemExit(f"Sign-in failed ({e.code}): {e.read().decode(errors='replace')}") from None
+    except (urllib.error.URLError, TimeoutError) as e:
+        raise SystemExit(f"Cannot reach {url}: {getattr(e, 'reason', e)}") from None
+
 
 def ask(url: str, question: str) -> dict:
-    req = urllib.request.Request(url.rstrip("/") + "/ask", method="POST",
-                                 data=json.dumps({"question": question}).encode(),
-                                 headers={"Content-Type": "application/json"})
-    with urllib.request.urlopen(req, timeout=TIMEOUT_S) as r:
-        return json.load(r)
+    return post(url, "/ask", {"question": question})
 
 
 def cites(expected: dict, citation: dict) -> bool:
@@ -68,6 +91,7 @@ def main():
     p.add_argument("--out", type=Path, help="CSV path (default: eval/results/<date>-<time>.csv)")
     args = p.parse_args()
 
+    sign_in(args.url)
     scenarios = yaml.safe_load(args.scenarios.read_text(encoding="utf-8"))["scenarios"]
     if args.only:
         scenarios = [s for s in scenarios if s["id"] in args.only]
