@@ -44,7 +44,7 @@ done
 
 # Frontend: build it if it is in the repo, otherwise a placeholder that points to the API page.
 if [ -f frontend/package.json ]; then
-  dnf install -y -q nodejs npm  # ponytail: AL2023 default Node; pin nodejs20 if the Vite build needs it
+  dnf install -y -q nodejs22 nodejs22-npm  # Vite 8 needs Node 20.19+; the AL2023 default is 18
   sudo -u "$USER_NAME" bash -c "cd frontend && npm ci --silent && npm run build --silent"
 else
   install -d -o "$USER_NAME" frontend/dist
