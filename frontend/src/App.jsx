@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { ask } from './api.js'
+import { ask, historyFor } from './api.js'
 import { chatMeta, loadChats, newId, saveChats } from './chats.js'
 import Confirm from './components/Confirm.jsx'
 import Sidebar from './components/Sidebar.jsx'
@@ -32,10 +32,10 @@ export default function App() {
     )
   }
 
-  async function run(chatId, turnId, question) {
+  async function run(chatId, turnId, question, history) {
     const start = performance.now()
     try {
-      const result = await ask(question)
+      const result = await ask(question, history)
       patchTurn(chatId, turnId, { status: 'done', result, error: null, ms: Math.round(performance.now() - start) })
     } catch (e) {
       patchTurn(chatId, turnId, { status: 'error', error: e.message })
@@ -52,13 +52,14 @@ export default function App() {
     )
     setActiveId(chatId)
     setSelection(null)
-    run(chatId, turn.id, question)
+    run(chatId, turn.id, question, historyFor(turns))
   }
 
+  // The history is what came before this question, not the turns asked after it.
   function retry(turn) {
     patchTurn(chat.id, turn.id, { status: 'loading', error: null })
     setSelection(null)
-    run(chat.id, turn.id, turn.question)
+    run(chat.id, turn.id, turn.question, historyFor(turns.slice(0, turns.indexOf(turn))))
   }
 
   function remove(id) {

@@ -5,7 +5,7 @@ sources cited by the selected answer. See the [root README](../README.md) for th
 
 | File | What |
 |---|---|
-| `src/api.js` | The `/ask` call and its error messages (timeout, rate limit, service down) |
+| `src/api.js` | The `/ask` call, the earlier exchanges of the open chat sent as `history`, and the error messages (timeout, rate limit, service down) |
 | `src/detect.js` | Codes, job and step recognised in what the user types (same rules as `rag-llm/rag/codes.py`) |
 | `src/format.js` | Answer text to paragraphs, lists and code blocks; answer to plain text for copying |
 | `src/chats.js` | Chat history in `localStorage` (this browser only, last 50 chats) |
