@@ -90,19 +90,30 @@ class _Sources:
             return "No results."
         out = []
         for h in hits:
+            seen = next((n for n, s in enumerate(self.items, 1)
+                         if (s["source"], s["locator"]) == (h["source"], h["locator"])), None)
+            if seen:  # the same entry again: keep its number, send the text only if it is a new part
+                old, new = self.items[seen - 1], h.get("text", h["snippet"])
+                body = "(already given above)" if new == old.get("text", old["snippet"]) else f"\n{new}"
+                out.append(f"[{seen}] {h['source']} | {h['locator']} {body}")
+                continue
             self.items.append(h)
             out.append(f"[{len(self.items)}] {h['source']} | {h['locator']}\n{h.get('text', h['snippet'])}")
         return "\n\n".join(out)
 
-    def cited(self, text: str) -> list[dict]:
-        nums = dict.fromkeys(int(n) for n in re.findall(r"\[(\d+)\]", text))
-        return [{"source": self.items[n - 1]["source"], "locator": self.items[n - 1]["locator"],
-                 "snippet": self.items[n - 1]["snippet"][:SNIPPET_CHARS]}
-                for n in nums if 1 <= n <= len(self.items)]
+    def finalize(self, text: str) -> tuple[str, list[dict]]:
+        """Renumber cited sources 1..k in order of first use, so [n] matches citations[n-1].
 
-    def drop_unknown(self, text: str) -> str:
-        """Remove [n] markers that point at no source."""
-        return re.sub(r"\[(\d+)\]", lambda m: m.group(0) if 1 <= int(m.group(1)) <= len(self.items) else "", text)
+        Markers that point at no source are dropped.
+        """
+        order = {}
+        for n in map(int, re.findall(r"\[(\d+)\]", text)):
+            if 1 <= n <= len(self.items):
+                order.setdefault(n, len(order) + 1)
+        text = re.sub(r"\[(\d+)\]", lambda m: f"[{order[int(m.group(1))]}]" if int(m.group(1)) in order else "", text)
+        citations = [{"source": self.items[n - 1]["source"], "locator": self.items[n - 1]["locator"],
+                      "snippet": self.items[n - 1]["snippet"][:SNIPPET_CHARS]} for n in order]
+        return text, citations
 
 
 def _run_tool(name: str, args: dict, sources: _Sources, codes: list[str]) -> str:
@@ -151,10 +162,9 @@ def answer(question: str, client=None) -> dict:
     else:
         return {"answer": "Not found in the docs.", "codes": codes, "citations": []}
 
-    text = sources.drop_unknown("".join(b.get("text", "") for b in msg["content"]).strip())
+    text, citations = sources.finalize("".join(b.get("text", "") for b in msg["content"]).strip())
     if resp["stopReason"] == "max_tokens":
         text += " (answer cut short)"
-    citations = sources.cited(text)
     if not citations:  # an answer with no source is not allowed
         text = "Not found in the docs."
     return {"answer": text, "codes": codes, "citations": citations}

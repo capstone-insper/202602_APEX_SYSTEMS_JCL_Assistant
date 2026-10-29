@@ -84,3 +84,38 @@ def test_bad_corpus_unknown_refs_and_long_snippets(monkeypatch):
     assert seen["corpus"] is None  # invalid corpus falls back to both
     assert out["answer"] == "Answer [1]."
     assert len(out["citations"][0]["snippet"]) == ra.SNIPPET_CHARS
+
+
+def test_repeated_source_reuses_number_and_citations_are_renumbered(monkeypatch):
+    jcl = {"source": "carddemo/app/jcl/POSTTRAN.jcl", "locator": "lines 18-45", "snippet": "//STEP15"}
+    setup(monkeypatch, [jcl])
+    fake = FakeBedrock(tool_reply("lookup_code", {"code": "S0C7"}),  # 0Cx was already preloaded as [1]
+                       tool_reply("search_docs", {"query": "POSTTRAN", "corpus": "jcl"}),
+                       text_reply("Bad data [1]. STEP15 runs CBTRN02C [2]. Again [1]."))
+    out = ra.answer("POSTTRAN ended SOC7", client=fake)
+
+    repeat = fake.calls[1]["messages"][2]["content"][0]["toolResult"]["content"][0]["text"]
+    assert repeat.startswith("[1] z/OS MVS System Codes | 0Cx, p. 194 (already given above)")
+    assert [c["locator"] for c in out["citations"]] == ["0Cx, p. 194", "lines 18-45"]
+    assert out["answer"] == "Bad data [1]. STEP15 runs CBTRN02C [2]. Again [1]."
+
+
+def test_markers_follow_citation_order(monkeypatch):
+    hits = [{"source": f"s{i}", "locator": f"l{i}", "snippet": "x"} for i in range(3)]
+    setup(monkeypatch, hits)
+    fake = FakeBedrock(tool_reply("search_docs", {"query": "q", "corpus": "jcl"}),
+                       text_reply("Third [3], then first [1]."))
+    out = ra.answer("q", client=fake)
+    assert out["answer"] == "Third [1], then first [2]."
+    assert [c["source"] for c in out["citations"]] == ["s2", "s0"]
+
+
+def test_same_entry_other_part_is_sent_with_same_number(monkeypatch):
+    setup(monkeypatch)  # S0C7 and S0C4 both map to the long 0Cx entry, focused on different lines
+    long_0cx = dict(ENTRY_0CX, text="0Cx\nExplanation\n" + "filler\n" * 1500 + "0C4\nProtection.\n"
+                    + "filler\n" * 1500 + "0C7\nData exception.")
+    monkeypatch.setattr(ra, "lookup_code", lambda c: [long_0cx])
+    fake = FakeBedrock(tool_reply("lookup_code", {"code": "S0C4"}), text_reply("See [1]."))
+    ra.answer("S0C7", client=fake)
+    sent = fake.calls[1]["messages"][2]["content"][0]["toolResult"]["content"][0]["text"]
+    assert sent.startswith("[1] z/OS MVS System Codes | 0Cx, p. 194 \n") and "0C4\nProtection." in sent
