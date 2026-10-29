@@ -12,7 +12,7 @@ Apex Systems use case 2, built by the Insper and Missouri S&T teams.
 | `backend/` | FastAPI `POST /ask` |
 | `rag-llm/` | Corpus ingestion, index, exact code lookup, retrieval and the Claude call (`answer()`) |
 | `infra/` | EC2 setup script |
-| `eval/` (planned) | Test scenarios and evaluation script |
+| `eval/` | Test scenarios (`scenarios.yaml`) and the script that scores `/ask` on them (`run_eval.py`) |
 
 `backend` imports `rag` from `rag-llm`; the corpus and index live in `rag-llm/data` (not in git).
 
@@ -74,6 +74,20 @@ python -m rag.answer "STEP15 in POSTTRAN ended with S0C7, why?"
 ```
 
 `BEDROCK_MODEL_ID` and `AWS_REGION` override the defaults (`us.anthropic.claude-sonnet-4-5-20250929-v1:0`, `us-east-1`).
+
+## Evaluate
+
+`eval/scenarios.yaml` has ten questions on the CardDemo jobs (JCL explanations, S0C7, S0C4, S806,
+S322, IEF212I, a JCL error and one out-of-scope question), each with the expected cause, keywords
+and sources. `run_eval.py` sends them to `/ask`, like the chat does, and scores each answer twice:
+the expected sources are cited, and the answer has the expected terms. Results go to a CSV in
+`eval/results/` for review.
+
+```
+python eval/run_eval.py                          # API on localhost:8000 (stub: only plumbing)
+python eval/run_eval.py --url http://<server>    # real answers, about $0.04 each
+pytest eval
+```
 
 ## Deploy on AWS
 
