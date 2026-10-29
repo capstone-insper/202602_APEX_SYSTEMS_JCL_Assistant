@@ -3,7 +3,7 @@ import { chatMeta } from '../chats.js'
 import logo from '../assets/everforth-apex-white.png'
 import { CodeTag } from './Tags.jsx'
 
-export default function Sidebar({ chats, activeId, collapsed, onToggle, onOpen, onNew, onDelete, onClear }) {
+export default function Sidebar({ user, onSignOut, chats, activeId, collapsed, onToggle, onOpen, onNew, onDelete, onClear }) {
   const [query, setQuery] = useState('')
   const [by, setBy] = useState('job')
 
@@ -16,8 +16,8 @@ export default function Sidebar({ chats, activeId, collapsed, onToggle, onOpen, 
         <button className="icon-btn new" onClick={onNew} title="New chat" aria-label="New chat">
           +
         </button>
-        <span className="avatar rail-avatar" title="Not signed in">
-          <UserIcon />
+        <span className="avatar rail-avatar" title={`${user.name} (${user.email})`}>
+          {initials(user.name)}
         </span>
       </aside>
     )
@@ -105,27 +105,32 @@ export default function Sidebar({ chats, activeId, collapsed, onToggle, onOpen, 
 
       <img className="logo" src={logo} alt="Everforth Apex Systems" width="148" height="29" />
       <footer className="user">
-        {/* Placeholder: there is no sign-in yet. */}
-        <span className="avatar">
-          <UserIcon />
-        </span>
+        <span className="avatar">{initials(user.name)}</span>
         <div className="user-text">
-          <span className="user-name">Guest</span>
-          <span className="user-role">Not signed in</span>
+          <span className="user-name ellipsis">{user.name}</span>
+          <span className="user-role ellipsis">{user.email}</span>
         </div>
-        <button className="icon-btn" disabled title="Account options are not available yet" aria-label="Account options">
-          ⋯
+        <button className="icon-btn" onClick={onSignOut} title="Sign out" aria-label="Sign out">
+          <SignOutIcon />
         </button>
       </footer>
     </aside>
   )
 }
 
-function UserIcon() {
+// "Alex Rivera" -> "AR"; one word -> its first letter.
+const initials = (name) =>
+  name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w[0].toUpperCase())
+    .join('')
+
+function SignOutIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
-      <circle cx="8" cy="5.5" r="2.75" />
-      <path d="M2.75 14c.6-2.6 2.7-4 5.25-4s4.65 1.4 5.25 4" />
+      <path d="M6.5 2.75h-3a1 1 0 0 0-1 1v8.5a1 1 0 0 0 1 1h3M10.5 11l3-3-3-3M13.25 8H6.5" />
     </svg>
   )
 }

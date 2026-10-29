@@ -1,8 +1,10 @@
 // Chats live in this browser only (localStorage): the backend keeps no history.
+// Each signed-in user has a separate list, so whoever signs in next on the same browser
+// does not see the previous user's chats. The old key without a user is ignored.
 
 import { detect } from './detect.js'
 
-const STORE = 'jcl-assistant.chats.v1'
+const store = (user) => `jcl-assistant.chats.v1.${user}`
 
 export const newId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8)
 
@@ -22,9 +24,9 @@ function validTurn(t) {
     r.citations.every((c) => c && typeof c.source === 'string' && typeof c.locator === 'string' && typeof c.snippet === 'string')
 }
 
-export function loadChats() {
+export function loadChats(user) {
   try {
-    const chats = JSON.parse(localStorage.getItem(STORE))
+    const chats = JSON.parse(localStorage.getItem(store(user)))
     if (!Array.isArray(chats)) return []
     return chats
       .filter((c) => c && typeof c.id === 'string' && Array.isArray(c.turns))
@@ -42,9 +44,9 @@ export function loadChats() {
 }
 
 // Last writer wins: two open tabs each keep their own list. Fine for a single operator.
-export function saveChats(chats) {
+export function saveChats(user, chats) {
   try {
-    localStorage.setItem(STORE, JSON.stringify(chats.slice(0, MAX_CHATS)))
+    localStorage.setItem(store(user), JSON.stringify(chats.slice(0, MAX_CHATS)))
   } catch {
     // private window or full storage: history just does not persist
   }
