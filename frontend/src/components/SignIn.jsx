@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import { login } from '../api.js'
 import logo from '../assets/everforth-apex-white.png'
+import SignInDemo from './SignInDemo.jsx'
 
 // Sign-in screen (Figma mockups 0a and 0b). Accounts are created by an admin, so there is no
 // sign-up link and no password reset by email: both go through the administrator.
@@ -33,6 +34,7 @@ export default function SignIn({ notice, onSignedIn }) {
         <div className="signin-pitch">
           <h1 className="signin-name">JCL Assistant</h1>
           <p className="signin-tagline">Understand JCL jobs and abends in seconds.</p>
+          <SignInDemo />
         </div>
         <img className="logo" src={logo} alt="Everforth Apex Systems" width="148" height="29" />
       </section>

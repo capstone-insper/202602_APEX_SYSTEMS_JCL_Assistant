@@ -9,7 +9,7 @@ sources cited by the selected answer. See the [root README](../README.md) for th
 | `src/detect.js` | Codes, job and step recognised in what the user types (same rules as `rag-llm/rag/codes.py`) |
 | `src/format.js` | Answer text to paragraphs, lists and code blocks; answer to plain text for copying |
 | `src/chats.js` | Chat history in `localStorage` (this browser only, one list per signed-in user, last 50 chats) |
-| `src/components/` | `SignIn`, `Sidebar` (with the signed-in user and Sign out), `Thread` (questions, answers, composer), `Sources`, `Tags` |
+| `src/components/` | `SignIn` (with `SignInDemo`, a typed.js showcase of fixed example questions), `Sidebar` (with the signed-in user and Sign out), `Thread` (questions, answers, composer), `Sources`, `Tags` |
 | `test/` | Unit tests for `detect.js`, `format.js`, `api.js` and `chats.js` (`node:test`, no extra dependency) |
 
 ## Run

@@ -12,7 +12,8 @@
   },
   "dependencies": {
     "react": "^19.3.1",
-    "react-dom": "^19.3.1"
+    "react-dom": "^19.3.1",
+    "typed.js": "2.1.0"
   },
   "devDependencies": {
     "@types/react": "^19.3.0",
