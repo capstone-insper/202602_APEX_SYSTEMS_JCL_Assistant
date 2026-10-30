@@ -25,6 +25,8 @@ def search_docs(query: str, k: int = 5, corpus: str | None = None, collection=No
     ~15x larger, so without a filter it tends to crowd out JCL hits.
     """
     col = collection or _collection()
+    if col.count() == 0:  # index missing its build (e.g. interrupted): no hits instead of a 500
+        return []
     where = {"kind": {"$in": CORPORA[corpus]}} if corpus else None
     # ponytail: big over-fetch because one long entry (EC6) has ~65 parts that collapse to one hit
     res = col.query(query_texts=[query], n_results=min(k * 20, col.count()), where=where)

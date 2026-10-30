@@ -42,3 +42,8 @@ def test_build_and_search(tmp_path):
     assert search_docs("module", k=1, corpus="jcl", collection=col)[0]["kind"] == "jcl_step"
     job = search_docs("job", k=1, collection=col)[0]
     assert (job["source"], job["locator"]) == ("carddemo/app/jcl/POSTTRAN.jcl", "lines 18-45")
+
+
+def test_search_on_empty_index_returns_nothing(tmp_path):
+    col = build([], tmp_path / "index", embedding_function=BagOfWords())
+    assert search_docs("anything", collection=col) == []

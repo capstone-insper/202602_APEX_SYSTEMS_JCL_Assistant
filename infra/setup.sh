@@ -35,12 +35,21 @@ if [ -n "${IBM_PDFS_S3:-}" ]; then
   sudo -u "$USER_NAME" aws s3 cp "$IBM_PDFS_S3" rag-llm/data/raw/ibm/ --recursive --exclude "*" --include "*.pdf" --only-show-errors
 fi
 
-# Corpus and index (~10 min the first time; the downloads are cached in rag-llm/data/raw).
-# The rebuild deletes rag-llm/data/index, so the API is down until the end of the script.
-systemctl stop jcl-assistant 2>/dev/null || true
-for step in ingest.jcl ingest.ibm ingest.index; do
-  sudo -u "$USER_NAME" bash -c "cd rag-llm && ../.venv/bin/python -m $step"
-done
+# Corpus and index (~20 min; the downloads are cached in rag-llm/data/raw). Rebuilt only when the
+# ingest code changed since the last complete build (the stamp holds its git tree id), or with
+# REBUILD_INDEX=1. The rebuild deletes rag-llm/data/index, so the API is down until it ends.
+STAMP=rag-llm/data/index.stamp
+WANT=$(sudo -u "$USER_NAME" git rev-parse HEAD:rag-llm/ingest)
+if [ "${REBUILD_INDEX:-0}" = 1 ] || [ "$(cat "$STAMP" 2>/dev/null)" != "$WANT" ]; then
+  systemctl stop jcl-assistant 2>/dev/null || true
+  rm -f "$STAMP"  # an interrupted build leaves no stamp, so the next run rebuilds
+  for step in ingest.jcl ingest.ibm ingest.index; do
+    sudo -u "$USER_NAME" bash -c "cd rag-llm && ../.venv/bin/python -m $step"
+  done
+  echo "$WANT" | sudo -u "$USER_NAME" tee "$STAMP" >/dev/null
+else
+  echo "Ingest code unchanged since the last build: keeping the index (REBUILD_INDEX=1 forces it)."
+fi
 
 # Frontend: build it if it is in the repo, otherwise a placeholder that points to the API page.
 if [ -f frontend/package.json ]; then
