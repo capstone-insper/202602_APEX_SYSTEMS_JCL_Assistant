@@ -9,3 +9,7 @@ data/
 
 node_modules/
 frontend/dist/
+
+# sign-in accounts and sessions (backend/jcl.db in dev)
+jcl.db
+jcl.db-journal
