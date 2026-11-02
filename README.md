@@ -33,8 +33,9 @@ POST /ask
 Optional `history`: the earlier turns of the chat, oldest first, as `[{"question": "...", "answer": "..."}]`,
 so a follow-up like "what does line 41 do?" keeps its context. The last 3 turns are sent to the model.
 
-`/ask` needs a signed-in session (401 otherwise); see [Sign-in](#sign-in). The full schema is served
-at `/docs` when the API runs.
+`/ask` needs a signed-in session (401 otherwise); see [Sign-in](#sign-in). It answers 502 when the model
+is unavailable and 503 when the corpus or index is not built. The full schema is served at `/docs` when
+the API runs.
 
 ## Run locally
 
@@ -87,6 +88,9 @@ Automated, no AWS needed (from the repo root, with the virtual environment activ
 pytest eval                   # scoring of the evaluation script
 (cd frontend && npm test && npm run lint && npm run build)
 ```
+
+GitHub Actions runs all of these on every pull request and on pushes to `main`
+(`.github/workflows/ci.yml`), with no AWS credentials and no corpus.
 
 By hand, with the stub API and the chat running (see [Run locally](#run-locally)) and two accounts
 made with `python -m api.users add`:
