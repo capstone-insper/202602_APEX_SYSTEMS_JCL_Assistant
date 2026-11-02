@@ -1,7 +1,8 @@
 import chromadb
+import pytest
 
 from ingest.index import build, split
-from rag.search import search_docs
+from rag.search import _collection, search_docs
 
 WORDS = ["space", "data", "module", "job"]
 
@@ -14,6 +15,11 @@ class BagOfWords(chromadb.EmbeddingFunction):
 
     def __call__(self, input):
         return [[doc.lower().count(w) + 0.01 for w in WORDS] for doc in input]
+
+
+def test_missing_index_is_a_file_not_found(tmp_path):
+    with pytest.raises(FileNotFoundError, match="ingest.index"):
+        _collection(tmp_path / "index")
 
 
 def test_split_keeps_lines_and_size():

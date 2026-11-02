@@ -104,3 +104,5 @@ def ask(req: AskRequest, user: sqlite3.Row = Depends(current_user)) -> dict:
         return answer(req.question, history=[t.model_dump() for t in req.history])
     except (BotoCoreError, ClientError) as e:  # throttling, AccessDenied, timeout
         raise HTTPException(502, "The model is unavailable, try again.") from e
+    except FileNotFoundError as e:  # rag-llm/data not built yet, or being rebuilt by setup.sh
+        raise HTTPException(503, "The document index is not ready, try again later.") from e

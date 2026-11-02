@@ -15,7 +15,10 @@ CORPORA = {"jcl": ["jcl_step", "jcl_job"], "ibm": ["ibm_code", "ibm_message"]}
 @lru_cache(maxsize=1)
 def _collection(path: Path = INDEX):
     client = chromadb.PersistentClient(str(path), settings=chromadb.Settings(anonymized_telemetry=False))
-    return client.get_collection(COLLECTION)
+    try:
+        return client.get_collection(COLLECTION)
+    except chromadb.errors.NotFoundError:  # same error as the missing chunks file in rag.codes
+        raise FileNotFoundError(f"No index in {path}: run python -m ingest.index") from None
 
 
 def search_docs(query: str, k: int = 5, corpus: str | None = None, collection=None) -> list[dict]:
