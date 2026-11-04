@@ -2,7 +2,8 @@
 
 Two scores per scenario:
   source_ok  every expected source is among the citations (for not_found: no citations)
-  answer_ok  the answer has a term of every keyword group (for not_found: "Not found in the docs.")
+  answer_ok  the answer has a term of every keyword group and no forbidden term
+             (for not_found: "Not found in the docs.")
 
 Run from the repo root, with the API up (stub or real). /ask needs a session, so the script
 signs in first with an account made by python -m api.users:
@@ -79,8 +80,9 @@ def score(scenario: dict, result: dict) -> dict:
     text = answer.lower()
     missing_terms = [" | ".join(g) for g in scenario["keywords"]
                      if not any(str(term).lower() in text for term in g)]
-    return {"source_ok": not missing_sources, "answer_ok": not missing_terms,
-            "missing": "; ".join(missing_sources + missing_terms)}
+    forbidden = [f"forbidden: {term}" for term in scenario.get("forbidden", []) if str(term).lower() in text]
+    return {"source_ok": not missing_sources, "answer_ok": not (missing_terms or forbidden),
+            "missing": "; ".join(missing_sources + missing_terms + forbidden)}
 
 
 def main():
