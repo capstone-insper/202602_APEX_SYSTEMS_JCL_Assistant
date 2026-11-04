@@ -31,6 +31,13 @@ def test_score_reports_what_is_missing():
     assert score(scenario, bad) == {"source_ok": False, "answer_ok": False, "missing": "0C7; data exception"}
 
 
+def test_forbidden_term_fails_the_answer():
+    scenario = {"keywords": [["time"]], "sources": [], "forbidden": [1440, "NOLIMIT"]}
+    assert score(scenario, {"answer": "The time limit.", "codes": [], "citations": []})["answer_ok"]
+    bad = score(scenario, {"answer": "Time: use TIME=1440.", "codes": [], "citations": []})
+    assert not bad["answer_ok"] and bad["missing"] == "forbidden: 1440"
+
+
 def test_not_found_wants_no_citations():
     scenario = {"not_found": True}
     assert score(scenario, {"answer": "Not found in the docs.", "codes": [], "citations": []})["answer_ok"]

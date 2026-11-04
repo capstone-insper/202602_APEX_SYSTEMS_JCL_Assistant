@@ -4,6 +4,7 @@
 # expected_cause   the right answer in one or two sentences, for the person reviewing the results
 # keywords         groups of terms; the answer must contain at least one term of every group
 #                  (case-insensitive). A quick first pass, not a replacement for the review.
+# forbidden        terms the answer must not have: details that are in no source
 # sources          every one must be among the citations. A JCL file by its path; an IBM entry by
 #                  book and code (S0C7 also matches the grouped 0Cx entry).
 # not_found: true  the right answer is "Not found in the docs." with no citations
@@ -39,7 +40,7 @@ scenarios:
     expected_cause: >-
       It runs SDSF in batch to send CEMT SET FIL(...) CLO commands to the CICS region (CICSAWSA),
       closing the CardDemo VSAM files in CICS so the batch jobs can open them.
-    keywords: [[SDSF], [CEMT], [CICS], [clos]]
+    keywords: [[CEMT], [CICS], [clos]]
     sources:
       - source: carddemo/app/jcl/CLOSEFIL.jcl
 
@@ -52,21 +53,23 @@ scenarios:
       Data exception: a decimal (packed) instruction ran on a field with invalid data. In POSTTRAN
       it points at a bad record in the daily transaction input of CBTRN02C. Fix the record and
       rerun the step.
-    keywords: [[data exception], [packed, decimal, numeric]]
+    keywords: [[data exception], [packed, decimal, numeric], [DALYTRAN, daily transaction]]
     sources:
       - source: z/OS MVS System Codes
         code: 0C7
+      - source: carddemo/app/jcl/POSTTRAN.jcl
 
   - id: abend-s0c4-intcalc
     kind: abend
     question: INTCALC ended with S0C4 in STEP15. What does that mean?
     expected_cause: >-
-      Protection exception: CBACT04C addressed storage it may not use, often a bad subscript or
-      index, a record layout that does not match the file, or a call with wrong parameters.
-    keywords: [[protection, storage], [subscript, index, address, layout]]
+      Protection exception or a reference to storage that was not obtained: CBACT04C, the program
+      of STEP15, tried to use storage it may not access. The dump's reason code tells which.
+    keywords: [[protection], [storage], [reason code], [CBACT04C]]
     sources:
       - source: z/OS MVS System Codes
         code: 0C4
+      - source: carddemo/app/jcl/INTCALC.jcl
 
   - id: abend-s806
     kind: abend
@@ -75,21 +78,24 @@ scenarios:
     expected_cause: >-
       The system could not find the program to load (CBACT04C). Check the PGM name and that the
       load module is in AWS.M2.CARDDEMO.LOADLIB, the STEPLIB of the step.
-    keywords: [[not found, could not be found, not located, find], [STEPLIB, LOADLIB, library]]
+    keywords: [[not found, could not be found, not located, find], [STEPLIB, LOADLIB, library], [CBACT04C]]
     sources:
       - source: z/OS MVS System Codes
         code: "806"
+      - source: carddemo/app/jcl/INTCALC.jcl
 
   - id: abend-s322-creastmt
     kind: abend
     question: CREASTMT abended S322 in STEP040. How do I fix it?
     expected_cause: >-
-      The step used more CPU time than allowed (the TIME limit of the job or step, or the class
-      default). Look for a loop in CBSTM03A or raise TIME if the volume is legitimately larger.
-    keywords: [[time], [TIME, limit, exceeded, loop]]
+      The step ran longer than the TIME parameter of the job or step, or the standard limit. Check
+      CBSTM03A for a program error first; if there is none, raise TIME on the EXEC statement.
+    keywords: [[time limit, TIME parameter], [program error], [CBSTM03A]]
+    forbidden: [1440, NOLIMIT]  # in no source: the model added them from general knowledge
     sources:
       - source: z/OS MVS System Codes
         code: "322"
+      - source: carddemo/app/jcl/CREASTMT.JCL
 
   - id: msg-ief212i-dalytran
     kind: message
@@ -101,6 +107,7 @@ scenarios:
     sources:
       - source: z/OS MVS System Messages, Vol 8 (IEF-IGD)
         code: IEF212I
+      - source: carddemo/app/jcl/POSTTRAN.jcl
 
   - id: jcl-error-ief453i
     kind: message

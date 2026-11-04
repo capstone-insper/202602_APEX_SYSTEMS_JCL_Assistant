@@ -13,6 +13,7 @@ import re
 import sys
 
 from rag.codes import find_codes, lookup_code
+from rag.jobs import find_steps
 from rag.search import search_docs
 
 MODEL_ID = os.environ.get("BEDROCK_MODEL_ID", "us.anthropic.claude-sonnet-4-5-20250929-v1:0")
@@ -26,12 +27,17 @@ codes and messages, and you suggest fixes.
 
 Rules:
 - Use only the numbered sources given to you in this conversation. Never use outside knowledge \
-for facts about codes, messages or the CardDemo jobs.
+for facts about codes, messages or the CardDemo jobs. Give no JCL parameter value, example \
+setting or number that is not in a source.
 - Cite every factual sentence with its source number in brackets, like [1] or [2][3].
 - If the sources do not answer the question, reply exactly: Not found in the docs.
+- When the question names a job, its JCL is in the sources. Connect the answer to it: name the \
+step's program and the DD files that matter here, and cite the JCL as well as the IBM entry.
+- To explain a job, give each step's program and its input and output files from the DD \
+statements, including new generations and reject files.
 - Use the tools when the sources you have are not enough: lookup_code for an exact code or \
 message id, search_docs for anything else. search_docs takes corpus "jcl" for CardDemo jobs \
-and "ibm" for the IBM manuals.
+and "ibm" for the IBM manuals. Never offer to look something up: do it now.
 - Be short: cause first, then the fix. Plain English, no headings."""
 
 TOOLS = [
@@ -77,6 +83,12 @@ def _entry_hits(code: str) -> list[dict]:
                      "text": _focus(c["text"], code, ENTRY_CHARS),
                      "snippet": _focus(c["text"], code, SNIPPET_CHARS)})
     return hits
+
+
+def _job_hits(question: str) -> list[dict]:
+    return [{"source": c["source"], "locator": f"lines {c['start_line']}-{c['end_line']}",
+             "text": c["text"][:ENTRY_CHARS], "snippet": c["text"][:SNIPPET_CHARS]}
+            for c in find_steps(question)]
 
 
 class _Sources:
@@ -153,10 +165,11 @@ def answer(question: str, client=None, history: list[dict] | None = None) -> dic
     sources = _Sources()
     codes = find_codes(question)
 
-    # Exact entries for the codes in the question go in up front: one model turn saved.
-    found = [h for c in codes for h in _entry_hits(c)]
+    # Exact entries for the codes and the JCL of the jobs in the question go in up front: the
+    # model sees both without having to ask, and one model turn is saved.
+    found = [h for c in codes for h in _entry_hits(c)] + _job_hits(question)
     missing = [c for c in codes if not _entry_hits(c)]
-    context = sources.add(found) if found else "No codes detected in the question."
+    context = sources.add(found) if found else "No codes or jobs detected in the question."
     if missing:
         context += "\nNo IBM entry in the corpus for: " + ", ".join(missing)
     messages = _history_messages(history) + [
