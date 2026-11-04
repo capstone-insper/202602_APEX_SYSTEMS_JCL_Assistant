@@ -90,7 +90,7 @@ scenarios:
     expected_cause: >-
       The step ran longer than the TIME parameter of the job or step, or the standard limit. Check
       CBSTM03A for a program error first; if there is none, raise TIME on the EXEC statement.
-    keywords: [[time limit, TIME parameter], [program error], [CBSTM03A]]
+    keywords: [[time limit, TIME parameter], [program error, program logic, loop], [CBSTM03A]]
     forbidden: [1440, NOLIMIT]  # in no source: the model added them from general knowledge
     sources:
       - source: z/OS MVS System Codes
