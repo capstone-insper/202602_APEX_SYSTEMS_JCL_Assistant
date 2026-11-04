@@ -27,6 +27,7 @@ def test_ask_goes_through_the_rag(signed_in, monkeypatch):
     monkeypatch.delenv("JCL_ASSISTANT_STUB", raising=False)
     entry = {"source": "z/OS MVS System Codes", "code": "0Cx", "page": 194, "text": "0Cx\nData exception."}
     monkeypatch.setattr("rag.answer.lookup_code", lambda code: [entry])
+    monkeypatch.setattr("rag.answer.find_steps", lambda question: [])
     sent = []
 
     class FakeBedrock:

@@ -28,6 +28,7 @@ def setup(monkeypatch, search_hits=()):
     monkeypatch.delenv("JCL_ASSISTANT_STUB", raising=False)
     monkeypatch.setattr(ra, "lookup_code", lambda c: [ENTRY_0CX] if c.upper() in ("S0C7", "S0C4") else [])
     monkeypatch.setattr(ra, "search_docs", lambda q, corpus=None: list(search_hits))
+    monkeypatch.setattr(ra, "find_steps", lambda q: [])
 
 
 def test_code_in_question_is_preloaded_and_cited(monkeypatch):
@@ -41,6 +42,32 @@ def test_code_in_question_is_preloaded_and_cited(monkeypatch):
     assert out["codes"] == ["S0C7"]
     assert out["citations"][0]["locator"] == "0Cx, p. 194"
     assert "0C7" in out["citations"][0]["snippet"]
+
+
+def test_job_in_question_is_preloaded_after_the_code(monkeypatch):
+    setup(monkeypatch)
+    step = {"source": "carddemo/app/jcl/POSTTRAN.jcl", "start_line": 18, "end_line": 45,
+            "text": "//STEP15 EXEC PGM=CBTRN02C\n//DALYTRAN DD DISP=SHR"}
+    monkeypatch.setattr(ra, "find_steps", lambda q: [step])
+    fake = FakeBedrock(text_reply("Bad data [1] in DALYTRAN [2]."))
+    out = ra.answer("POSTTRAN STEP15 ended S0C7", client=fake)
+
+    sent = fake.calls[0]["messages"][0]["content"][0]["text"]
+    assert "[2] carddemo/app/jcl/POSTTRAN.jcl | lines 18-45\n//STEP15 EXEC PGM=CBTRN02C" in sent
+    assert [c["source"] for c in out["citations"]] == ["z/OS MVS System Codes", "carddemo/app/jcl/POSTTRAN.jcl"]
+
+
+def test_job_found_by_search_keeps_the_preloaded_number(monkeypatch):
+    hit = {"source": "carddemo/app/jcl/POSTTRAN.jcl", "locator": "lines 18-45", "snippet": "//STEP15"}
+    setup(monkeypatch, [hit])
+    step = {"source": hit["source"], "start_line": 18, "end_line": 45, "text": "//STEP15"}
+    monkeypatch.setattr(ra, "find_steps", lambda q: [step])
+    fake = FakeBedrock(tool_reply("search_docs", {"query": "POSTTRAN", "corpus": "jcl"}), text_reply("Runs [1]."))
+    out = ra.answer("What does POSTTRAN do?", client=fake)
+
+    repeat = fake.calls[1]["messages"][2]["content"][0]["toolResult"]["content"][0]["text"]
+    assert repeat.startswith("[1] carddemo/app/jcl/POSTTRAN.jcl | lines 18-45 (already given above)")
+    assert len(out["citations"]) == 1
 
 
 def test_tool_call_then_answer(monkeypatch):
