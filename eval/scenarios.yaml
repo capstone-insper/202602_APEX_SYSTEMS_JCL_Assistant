@@ -4,7 +4,7 @@
 # expected_cause   the right answer in one or two sentences, for the person reviewing the results
 # keywords         groups of terms; the answer must contain at least one term of every group
 #                  (case-insensitive). A quick first pass, not a replacement for the review.
-# forbidden        terms the answer must not have: details that are in no source
+# forbidden        terms the answer must not have: details in no source, or a cause nothing points at
 # sources          every one must be among the citations. A JCL file by its path; an IBM entry by
 #                  book and code (S0C7 also matches the grouped 0Cx entry).
 # not_found: true  the right answer is "Not found in the docs." with no citations
@@ -65,7 +65,7 @@ scenarios:
     expected_cause: >-
       Protection exception or a reference to storage that was not obtained: CBACT04C, the program
       of STEP15, tried to use storage it may not access. The dump's reason code tells which.
-    keywords: [[protection], [storage], [reason code], [CBACT04C]]
+    keywords: [[protection], [storage], [CBACT04C]]
     sources:
       - source: z/OS MVS System Codes
         code: 0C4
@@ -115,7 +115,8 @@ scenarios:
     expected_cause: >-
       The system rejected the JCL before running any step. The message just before it in the job
       log (JESYSMSG) names the statement and the error; fix that statement and resubmit.
-    keywords: [[JCL error, JCL], [message, JESYSMSG, job log, statement]]
+    keywords: [[JCL error], [before, preceding, earlier], [job log, JESYSMSG, message]]
+    forbidden: [corrupted, garbage, line 89, line 90]  # the question reports no specific statement
     sources:
       - source: z/OS MVS System Messages, Vol 8 (IEF-IGD)
         code: IEF453I
