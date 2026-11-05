@@ -1,0 +1,377 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>JCL Analyzer &amp; Abend Assistant — Technical Report</title>
+<style>
+@page { size: Letter; margin: 1in 1in 0.9in 1in;
+  @bottom-center { content: counter(page); font: 9pt "Liberation Serif", "Times New Roman", serif; color: #555; } }
+@page :first { @bottom-center { content: none; } }
+:root { --ink:#1a1a1a; --muted:#555; --rule:#bbb; --accent:#1f3a5f; --shade:#f3f4f6; }
+html { font-family: "Liberation Serif", "Times New Roman", Georgia, serif; font-size: 11pt; color: var(--ink); line-height: 1.42; }
+body { margin: 0; }
+h1, h2, h3, .sans { font-family: "Liberation Sans", Arial, Helvetica, sans-serif; color: var(--accent); }
+h2 { font-size: 14pt; margin: 22pt 0 6pt; border-bottom: 0.75pt solid var(--rule); padding-bottom: 3pt; break-after: avoid; }
+h3 { font-size: 11.5pt; margin: 14pt 0 4pt; break-after: avoid; }
+p { margin: 0 0 7pt; text-align: justify; hyphens: auto; }
+ul, ol { margin: 0 0 8pt; padding-left: 20pt; }
+li { margin-bottom: 3pt; }
+code, pre, .mono { font-family: "Liberation Mono", "DejaVu Sans Mono", Consolas, monospace; font-size: 8.8pt; }
+code { background: var(--shade); padding: 0 2pt; border-radius: 2pt; }
+pre { background: var(--shade); border-left: 2.5pt solid var(--accent); padding: 6pt 9pt; margin: 4pt 0 10pt; white-space: pre-wrap; line-height: 1.3; break-inside: avoid; }
+pre code { background: none; padding: 0; }
+.tw { break-inside: avoid; }
+td.mono { white-space: nowrap; }
+table { border-collapse: collapse; width: 100%; margin: 4pt 0 4pt; font-size: 9.4pt; break-inside: avoid; }
+th, td { text-align: left; vertical-align: top; padding: 3.5pt 6pt; border-bottom: 0.5pt solid var(--rule); }
+th { font-family: "Liberation Sans", Arial, sans-serif; font-size: 8.8pt; border-top: 1pt solid var(--ink); border-bottom: 0.75pt solid var(--ink); }
+tbody tr:last-child td { border-bottom: 1pt solid var(--ink); }
+.caption { font-size: 9pt; color: var(--muted); margin: 3pt 0 12pt; text-align: center; }
+.caption b { color: var(--ink); }
+figure { margin: 8pt 0 4pt; break-inside: avoid; }
+.pass { color: #1b6e2f; font-weight: bold; }
+
+/* Title page */
+.title-page { height: 8.6in; display: flex; flex-direction: column; break-after: page; }
+.title-page .kicker { font-family: "Liberation Sans", Arial, sans-serif; font-size: 10pt; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin-top: 1.4in; }
+.title-page h1 { font-size: 26pt; line-height: 1.15; margin: 10pt 0 8pt; }
+.title-page .subtitle { font-size: 14pt; color: var(--muted); margin-bottom: 30pt; }
+.title-page .bar { width: 1.2in; height: 3pt; background: var(--accent); margin-bottom: 30pt; }
+.meta { font-size: 10.5pt; }
+.meta td { border: none; padding: 2pt 14pt 2pt 0; }
+.meta td:first-child { font-family: "Liberation Sans", Arial, sans-serif; font-size: 9pt; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; width: 1.4in; }
+.title-page .foot { margin-top: auto; font-size: 9pt; color: var(--muted); border-top: 0.5pt solid var(--rule); padding-top: 6pt; }
+
+.abstract { margin: 0 0.3in 14pt; font-size: 10.5pt; }
+.abstract h2 { border: none; text-align: center; font-size: 11pt; text-transform: uppercase; letter-spacing: 0.1em; margin-top: 0; }
+.toc { break-after: page; }
+.toc ol { list-style: none; padding-left: 0; font-size: 10.5pt; }
+.toc ol ol { padding-left: 18pt; font-size: 10pt; }
+.toc li { margin: 2pt 0; }
+.toc .n { display: inline-block; width: 26pt; font-family: "Liberation Sans", Arial, sans-serif; color: var(--muted); }
+.callout { border: 0.75pt solid var(--rule); background: var(--shade); padding: 6pt 10pt; margin: 6pt 0 10pt; font-size: 10pt; break-inside: avoid; }
+.refs li { font-size: 9.6pt; margin-bottom: 4pt; }
+svg text { font-family: "Liberation Sans", Arial, sans-serif; }
+</style>
+</head>
+<body>
+
+<!-- ============ TITLE PAGE ============ -->
+<section class="title-page">
+  <div class="kicker">Technical Report · Capstone Project</div>
+  <h1>JCL Analyzer &amp; Abend Assistant</h1>
+  <div class="subtitle">A citation-grounded retrieval-augmented assistant for z/OS batch job analysis and abend diagnosis</div>
+  <div class="bar"></div>
+  <table class="meta">
+    <tr><td>Sponsor</td><td>Apex Systems — Use Case 2</td></tr>
+    <tr><td>Prepared by</td><td>Insper and Missouri S&amp;T capstone teams</td></tr>
+    <tr><td>Repository</td><td class="mono">capstone-insper/202602_APEX_SYSTEMS_JCL_Assistant</td></tr>
+    <tr><td>Revision</td><td class="mono">main @ 4dd40ca</td></tr>
+    <tr><td>Date</td><td>November 5, 2026</td></tr>
+  </table>
+  <div class="foot">This report describes the system as implemented in the repository at the revision above, including its first end-to-end evaluation against the deployed service (November 4, 2026).</div>
+</section>
+
+<!-- ============ ABSTRACT + TOC ============ -->
+<section class="toc">
+  <div class="abstract">
+    <h2>Abstract</h2>
+    <p>Mainframe batch failures are diagnosed today by engineers who read job logs, look up IBM abend codes and system messages across thousands of pages of manuals, and correlate them with the Job Control Language (JCL) of the failing job. This knowledge is scarce and concentrated in a shrinking workforce. We present the <em>JCL Analyzer &amp; Abend Assistant</em>, a web-based chat assistant that explains the JCL of the AWS CardDemo reference application and diagnoses IBM z/OS abend codes and messages. The system combines deterministic, regex-based identification of codes, messages, jobs and steps with exact dictionary lookup over chunked IBM manuals, dense semantic retrieval over a Chroma vector index, and a tool-using large language model (Claude Sonnet 4.5 on Amazon Bedrock) constrained to answer only from numbered sources and to cite every factual sentence. A post-processing stage renumbers and validates citations so that every marker in an answer maps to a verifiable source. The system is deployed as a FastAPI service behind nginx on a single EC2 instance, with a React front end and session-based authentication. In its first evaluation against the deployed service, all ten scenarios — covering job explanation, four system abends, three system messages and an out-of-scope refusal — passed both source and content checks, with latencies of 2–11 s and an approximate cost of US$0.04 per answer.</p>
+  </div>
+  <h2>Contents</h2>
+  <ol>
+    <li><span class="n">1</span>Introduction and Motivation</li>
+    <li><span class="n">2</span>System Overview</li>
+    <li><span class="n">3</span>Architecture</li>
+    <li><span class="n">4</span>Methods
+      <ol>
+        <li><span class="n">4.1</span>Corpus and Ingestion</li>
+        <li><span class="n">4.2</span>Embedding and Indexing</li>
+        <li><span class="n">4.3</span>Deterministic Code and Job Recognition</li>
+        <li><span class="n">4.4</span>Grounded Generation with Tool Use</li>
+        <li><span class="n">4.5</span>Citation Integrity</li>
+        <li><span class="n">4.6</span>Conversation Context</li>
+        <li><span class="n">4.7</span>Authentication and Abuse Controls</li>
+      </ol></li>
+    <li><span class="n">5</span>Deployment</li>
+    <li><span class="n">6</span>Usage</li>
+    <li><span class="n">7</span>Testing and Evaluation</li>
+    <li><span class="n">8</span>Limitations and Future Work</li>
+    <li><span class="n">9</span>Conclusion</li>
+    <li><span class="n"></span>References</li>
+    <li><span class="n">A</span>Appendix: Configuration Reference</li>
+  </ol>
+</section>
+
+<!-- ============ 1 ============ -->
+<h2>1&nbsp;&nbsp;Introduction and Motivation</h2>
+<p>A large share of transaction processing in banking, insurance and government still runs as batch jobs on IBM z/OS, described in Job Control Language. When a job step fails, the operating system terminates it with a <em>system completion code</em> (an "abend", such as <code>S0C7</code>, a data exception) and writes system messages to the job log (such as <code>IEF450I</code>, which reports the abend, or <code>IEF212I</code>, a data set not found). Diagnosing the failure requires three pieces of knowledge at once: what the code or message means, as documented in IBM's <em>MVS System Codes</em> and <em>MVS System Messages</em> manuals; how the failing job is set up — which program the step runs and which data sets its DD statements allocate; and the usual corrective action.</p>
+<p>This knowledge is held by a shrinking population of experienced mainframe engineers, and the reference material is large: the two IBM manuals used here alone run to well over a thousand pages. Newer engineers and modernization teams therefore spend significant time on lookups that are mechanical but error-prone; codes that differ by one character (<code>S0C4</code> protection exception versus <code>S0C7</code> data exception) have unrelated causes.</p>
+<p>General-purpose large language models can explain these codes fluently, but in an operational setting fluency without provenance is a liability: a plausible but wrong explanation, or an invented JCL parameter value, can send an engineer in the wrong direction during an incident. The design goal of this project is therefore not merely to answer, but to answer <strong>only from authoritative sources, with a citation on every factual claim, and to refuse explicitly</strong> ("Not found in the docs.") when the sources do not support an answer.</p>
+<h3>1.1&nbsp;&nbsp;Scope</h3>
+<p>The proof of concept targets two corpora: (i) the JCL and catalogued procedures of <strong>CardDemo</strong>, an open-source mainframe credit-card application published by AWS as a modernization reference <a href="#r1">[1]</a>, and (ii) IBM's public <strong>z/OS 3.1 MVS System Codes</strong> <a href="#r2">[2]</a> and <strong>MVS System Messages, Volume 8 (IEF–IGD)</strong> <a href="#r3">[3]</a>. Questions about other topics (for example, REXX programming) are deliberately out of scope and should be refused.</p>
+
+<!-- ============ 2 ============ -->
+<h2>2&nbsp;&nbsp;System Overview</h2>
+<p>Users interact through a chat interface. A user may ask about a job ("What does the POSTTRAN job do?"), paste a fragment of a job log ("<code>IEF450I POSTTRAN STEP15 - ABEND=S0C7</code>"), or ask a free-form diagnostic question. Each answer is a short, plain-English explanation — cause first, then fix — in which each sentence carries bracketed markers such as <code>[1]</code> that link to the cited IBM entry (book, code, page) or CardDemo JCL member (file, line range). The interface also surfaces detected codes, job and step as chips, and shows source snippets in a side panel.</p>
+<p>All interaction flows through a single HTTP contract:</p>
+<pre><code>POST /ask
+{"question": "STEP15 ended S0C7, why?",
+ "history":  [{"question": "...", "answer": "..."}]}   // optional
+
+200 OK
+{"answer": "... invalid packed decimal data [1] ... [2]",
+ "codes":  ["S0C7"],
+ "citations": [
+   {"source": "z/OS MVS System Codes",
+    "locator": "0Cx, p. 194", "snippet": "..."},
+   {"source": "carddemo/app/jcl/POSTTRAN.jcl",
+    "locator": "lines 18-45", "snippet": "..."}]}</code></pre>
+<p>Citation <em>n</em> in the answer text corresponds to element <em>n</em>&minus;1 of <code>citations</code>. The endpoint requires an authenticated session (401 otherwise), returns 502 when the model is unavailable and 503 when the corpus or index has not been built.</p>
+
+<!-- ============ 3 ============ -->
+<h2>3&nbsp;&nbsp;Architecture</h2>
+<p>The system is a three-tier application organized as a monorepo (Table 1). The Python back end imports the retrieval-and-generation package directly rather than calling it over the network, which keeps the deployment to a single process.</p>
+
+<div class="tw"><table>
+  <thead><tr><th style="width:21%">Component</th><th style="width:27%">Technology</th><th>Responsibility</th></tr></thead>
+  <tbody>
+    <tr><td class="mono" style="white-space:nowrap">frontend/</td><td>React, Vite</td><td>Sign-in screen; chat with per-user history in browser storage; clickable citations and sources panel; live detection of codes, job and step as the user types.</td></tr>
+    <tr><td class="mono">backend/</td><td>FastAPI, SQLite, Pydantic</td><td><code>POST /ask</code>; <code>/auth/login</code>, <code>/auth/logout</code>, <code>/auth/me</code>; request validation; error mapping; account administration CLI (<code>python -m api.users</code>).</td></tr>
+    <tr><td class="mono">rag-llm/ingest</td><td>pypdf, git, ChromaDB</td><td>Fetch and chunk CardDemo JCL and the IBM manuals; build the vector index.</td></tr>
+    <tr><td class="mono">rag-llm/rag</td><td>ChromaDB, boto3 (Bedrock Converse)</td><td>Exact code lookup, job/step lookup, semantic search, tool-using generation, citation post-processing (<code>answer()</code>).</td></tr>
+    <tr><td class="mono">infra/</td><td>Bash, systemd, nginx</td><td>Idempotent install/update script for Amazon Linux 2023 on EC2.</td></tr>
+    <tr><td class="mono">eval/</td><td>Python, YAML</td><td>Ten evaluation scenarios and a scorer that exercises the deployed <code>/ask</code>.</td></tr>
+  </tbody>
+</table>
+<div class="caption"><b>Table 1.</b> Repository components.</div></div>
+
+<figure>
+<svg viewBox="0 0 640 330" width="100%" xmlns="http://www.w3.org/2000/svg">
+  <defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#1f3a5f"/></marker></defs>
+  <style>.b{fill:#fff;stroke:#1f3a5f;stroke-width:1.2}.s{fill:#f3f4f6;stroke:#999;stroke-width:0.8}.t{font-size:11px;fill:#1a1a1a}.h{font-size:11.5px;font-weight:bold;fill:#1f3a5f}.m{font-size:9.5px;fill:#555}.l{stroke:#1f3a5f;stroke-width:1.2;fill:none;marker-end:url(#a)}.d{stroke:#888;stroke-width:1;fill:none;stroke-dasharray:4 3;marker-end:url(#a)}</style>
+  <!-- browser -->
+  <rect class="b" x="10" y="20" width="130" height="62" rx="4"/>
+  <text class="h" x="75" y="42" text-anchor="middle">Browser</text>
+  <text class="m" x="75" y="58" text-anchor="middle">React chat UI</text>
+  <text class="m" x="75" y="71" text-anchor="middle">chat history (local)</text>
+  <!-- nginx -->
+  <rect class="b" x="180" y="20" width="110" height="62" rx="4"/>
+  <text class="h" x="235" y="42" text-anchor="middle">nginx :80</text>
+  <text class="m" x="235" y="58" text-anchor="middle">static dist/</text>
+  <text class="m" x="235" y="71" text-anchor="middle">rate limits</text>
+  <!-- fastapi -->
+  <rect class="b" x="330" y="20" width="140" height="62" rx="4"/>
+  <text class="h" x="400" y="42" text-anchor="middle">FastAPI :8000</text>
+  <text class="m" x="400" y="58" text-anchor="middle">/ask · /auth/*</text>
+  <text class="m" x="400" y="71" text-anchor="middle">uvicorn (systemd)</text>
+  <!-- sqlite -->
+  <rect class="s" x="510" y="20" width="120" height="62" rx="4"/>
+  <text class="h" x="570" y="42" text-anchor="middle">SQLite</text>
+  <text class="m" x="570" y="58" text-anchor="middle">users, scrypt hashes</text>
+  <text class="m" x="570" y="71" text-anchor="middle">sessions, lockouts</text>
+  <path class="l" d="M140,51 L178,51"/><path class="l" d="M290,51 L328,51"/><path class="l" d="M470,51 L508,51"/>
+  <!-- rag box -->
+  <rect x="160" y="112" width="470" height="200" rx="5" fill="none" stroke="#1f3a5f" stroke-width="1" stroke-dasharray="5 3"/>
+  <text class="h" x="172" y="130">rag.answer.answer(question, history)</text>
+  <path class="l" d="M400,82 L400,110"/>
+  <rect class="b" x="172" y="142" width="140" height="48" rx="4"/>
+  <text class="t" x="242" y="161" text-anchor="middle">find_codes / find_steps</text>
+  <text class="m" x="242" y="177" text-anchor="middle">regex recognition</text>
+  <rect class="b" x="330" y="142" width="130" height="48" rx="4"/>
+  <text class="t" x="395" y="161" text-anchor="middle">Seed sources [1..k]</text>
+  <text class="m" x="395" y="177" text-anchor="middle">exact entries + job JCL</text>
+  <rect class="b" x="478" y="142" width="140" height="48" rx="4"/>
+  <text class="t" x="548" y="161" text-anchor="middle">Claude Sonnet 4.5</text>
+  <text class="m" x="548" y="177" text-anchor="middle">Bedrock Converse, T=0</text>
+  <path class="l" d="M312,166 L328,166"/><path class="l" d="M460,166 L476,166"/>
+  <rect class="b" x="478" y="222" width="140" height="48" rx="4"/>
+  <text class="t" x="548" y="241" text-anchor="middle">Tools (≤ 4 turns)</text>
+  <text class="m" x="548" y="257" text-anchor="middle">lookup_code · search_docs</text>
+  <path class="l" d="M538,190 L538,220"/><path class="l" d="M558,222 L558,192"/>
+  <rect class="b" x="330" y="222" width="130" height="48" rx="4"/>
+  <text class="t" x="395" y="241" text-anchor="middle">Citation finalize</text>
+  <text class="m" x="395" y="257" text-anchor="middle">renumber, drop invalid</text>
+  <path class="l" d="M478,262 L462,262"/>
+  <text class="m" x="395" y="290" text-anchor="middle">→ {answer, codes, citations}</text>
+  <!-- data stores -->
+  <rect class="s" x="10" y="142" width="130" height="48" rx="4"/>
+  <text class="t" x="75" y="161" text-anchor="middle">chunks/*.jsonl</text>
+  <text class="m" x="75" y="177" text-anchor="middle">IBM entries, JCL steps</text>
+  <rect class="s" x="10" y="222" width="130" height="48" rx="4"/>
+  <text class="t" x="75" y="241" text-anchor="middle">Chroma index</text>
+  <text class="m" x="75" y="257" text-anchor="middle">MiniLM-L6-v2, cosine</text>
+  <path class="d" d="M140,166 L170,166"/>
+  <path class="d" d="M140,250 C300,300 450,300 520,272"/>
+  <text class="m" x="40" y="300">— — ▸ read at query time</text>
+</svg>
+</figure>
+<div class="caption"><b>Figure 1.</b> Request path. nginx serves the built front end and proxies <code>/ask</code>, <code>/auth</code> and <code>/docs</code> to FastAPI, which authenticates the session and calls the RAG pipeline in-process.</div>
+
+<!-- ============ 4 ============ -->
+<h2>4&nbsp;&nbsp;Methods</h2>
+
+<h3>4.1&nbsp;&nbsp;Corpus and Ingestion</h3>
+<p><strong>CardDemo JCL</strong> (<code>ingest/jcl.py</code>). The CardDemo repository is sparse-cloned at a pinned commit (<code>59cc6c2</code>) so the corpus is reproducible, restricted to six directories of JCL and PROC members. Each member is split <em>structurally</em> rather than by fixed length: one chunk for the job card (everything before the first step) and one chunk per step, beginning at its <code>EXEC</code> statement and extended upward over the comment lines that immediately precede it, since those comments usually describe the step. Columns 73–80 (the JCL sequence field, ignored by the system) are stripped, and the Apache licence banner is removed as retrieval noise. Each chunk records its job name, step name, the program or procedure executed (parsed from <code>PGM=</code>/<code>PROC=</code>), and its 1-based start and end line, which later become the citation locator.</p>
+<p><strong>IBM manuals</strong> (<code>ingest/ibm.py</code>). Text is extracted page by page with pypdf and cached, since extraction takes roughly 30 s per book. Page footers are recognised by pattern and removed; the <em>printed</em> page number they contain is retained so that citations match the page numbers a reader sees in the manual, while the PDF page index is kept to build a deep link (<code>…pdf#page=N</code>). The System Codes book is restricted to the chapter on system completion codes. Entries are segmented at headings that match the code or message-identifier pattern (<code>0C7</code>, <code>0Cx</code>, <code>IEF450I</code>), with a validation rule that eliminates false headings: a candidate is accepted only if an <code>Explanation</code> section follows before any other section label or heading. This rejects module names and cross-references that happen to look like identifiers. The result is one chunk per IBM entry, keyed by its code.</p>
+
+<h3>4.2&nbsp;&nbsp;Embedding and Indexing</h3>
+<p>Chunks from both corpora are embedded into a single Chroma collection using cosine distance and Chroma's default local embedding model, all-MiniLM-L6-v2 <a href="#r5">[5]</a>, chosen because it is free, runs offline after a one-time ~80 MB download, and keeps the deployment independent of a paid embedding API. Because this model reads only about 256 tokens, long entries are split at line boundaries into parts of at most ~700 characters, and <em>each part is prefixed with a header</em> repeating its identity — e.g. "JCL job POSTTRAN step STEP15 runs CBTRN02C (carddemo/app/jcl/POSTTRAN.jcl, lines 18-45)" or "0Cx: z/OS MVS System Codes, 0Cx, p. 194" — so that every embedded part carries its context. Metadata on each part records the parent chunk, its kind (<code>jcl_step</code>, <code>jcl_job</code>, <code>ibm_code</code>, <code>ibm_message</code>), source, locator and URL.</p>
+<p>At query time (<code>rag/search.py</code>) the search may be filtered to the JCL or IBM corpus; the IBM side is roughly fifteen times larger and would otherwise crowd out JCL results. Because a single long entry (for example, <code>EC6</code>) may be split into dozens of parts, the search over-fetches by a factor of twenty and then collapses parts to one hit per parent chunk, keeping the best-scoring part.</p>
+
+<h3>4.3&nbsp;&nbsp;Deterministic Code and Job Recognition</h3>
+<p>Semantic similarity is a poor tool for distinguishing <code>S0C4</code> from <code>S0C7</code>: the two IBM entries are textually near-identical in structure. The system therefore identifies codes deterministically before any retrieval (<code>rag/codes.py</code>). Regular expressions recognise system abends with optional reason codes (<code>S806-04</code>), the common typing error of a letter O for zero (<code>SOC7</code>), bare codes introduced by "abend" or "completion code" (<code>ABEND=S322</code>, "abend 0C4") while rejecting phrases such as "return code 100", and message identifiers in the IEF/IEC/IGD families. Codes are normalised and de-duplicated in order of appearance.</p>
+<p>Lookup is an exact dictionary match over the IBM chunks, built in memory from the same JSONL file as the index so there is no second table to keep synchronised. IBM groups some codes into family entries (all of <code>0C1</code>–<code>0CF</code> are documented under <code>0Cx</code>); the lookup falls back to the family entry, and a focusing routine extracts the window of that entry around the requested sub-code, so the model receives the <code>0C7</code> paragraph rather than the first 6,000 characters of the family.</p>
+<p>Analogously, <code>rag/jobs.py</code> recognises CardDemo job names in the question and returns that job's step chunks — only the named step if the question names one. At most two jobs are matched, because some job names coincide with DD names. The same recognition rules are mirrored in the front end (<code>src/detect.js</code>), which additionally parses job and step from <code>IEFnnnI</code> log lines to display context chips as the user types.</p>
+
+<h3>4.4&nbsp;&nbsp;Grounded Generation with Tool Use</h3>
+<p>Generation (<code>rag/answer.py</code>) uses Claude Sonnet 4.5 <a href="#r4">[4]</a> through the Amazon Bedrock Converse API at temperature 0 with a 1,500-token output limit. The pipeline proceeds as follows:</p>
+<ol>
+  <li><strong>Seeding.</strong> The exact IBM entries for every recognised code and the JCL of every recognised job are placed in the first user message as numbered sources. Codes with no IBM entry are listed explicitly. Seeding saves a model round-trip in the common case and guarantees that the model sees the correct entry rather than a semantically similar one.</li>
+  <li><strong>Tool loop.</strong> The model may call two tools: <code>lookup_code(code)</code> for an exact entry, and <code>search_docs(query, corpus)</code> for semantic search over the <code>jcl</code> or <code>ibm</code> corpus. Each tool result is appended to the same numbered source list. The loop is capped at four model calls per question to bound latency and cost; exhausting the cap yields the refusal string.</li>
+  <li><strong>Constraints.</strong> The system prompt requires the model to use only the numbered sources; to give no parameter value, example setting or number absent from a source; never to write example or corrected JCL; to cite every factual sentence; and to reply exactly "Not found in the docs." when sources are insufficient. When a job is named, the answer must connect the IBM explanation to that job's program and DD statements, but must not claim a specific JCL line caused a failure unless the question reports that error — JCL shows configuration, not what happened in a given run.</li>
+</ol>
+<div class="callout">The design choice is to let deterministic code do what it does reliably (identify <em>which</em> entry is relevant) and reserve the model for what it does well (reading several entries and the job's JCL and composing a short causal explanation), while making every claim auditable.</div>
+
+<h3>4.5&nbsp;&nbsp;Citation Integrity</h3>
+<p>A <code>_Sources</code> registry assigns numbers to sources as they are shown to the model and de-duplicates by (source, locator): if a tool returns an entry already shown, the model is given the existing number and, unless the text is a new excerpt, the note "(already given above)". After generation, <code>finalize()</code> scans the answer for <code>[n]</code> markers, keeps only those that reference a real source, renumbers them 1..<em>k</em> in order of first use, removes markers that point at nothing, and emits exactly the <em>k</em> cited sources in that order. Sources shown to the model but not cited are not returned. The guarantee to the user is that every marker in the answer resolves to a source with a snippet, and that the citation list contains nothing the answer does not use.</p>
+
+<h3>4.6&nbsp;&nbsp;Conversation Context</h3>
+<p>The client sends earlier turns with each request. The last three turns are replayed to the model as user/assistant message pairs, each truncated to 2,000 characters. Citation markers are stripped from earlier answers because numbering restarts every turn; an old <code>[1]</code> would otherwise point at the current turn's first source. Empty turns are dropped, as Bedrock rejects empty text blocks. Request validation bounds questions to 4,000 characters and history to ten turns.</p>
+
+<h3>4.7&nbsp;&nbsp;Authentication and Abuse Controls</h3>
+<p>Because every <code>/ask</code> call incurs a model charge, the API is not public. Accounts are created by an administrator through a command-line tool; there is no self-registration. Passwords are hashed with scrypt at the OWASP minimum parameters (N = 2<sup>15</sup>, r = 8, p = 3; about 32 MiB per hash) using only the Python standard library, and stored in SQLite. A bounded semaphore limits concurrent hash computations to four so that a burst of sign-ins cannot exhaust the memory the vector index also requires.</p>
+<p>A successful sign-in issues a random session token in an HttpOnly, SameSite=Strict cookie valid for 12 hours, or 30 days with "Keep me signed in"; any token the browser already held is revoked first. Five failed attempts lock an email for 15 minutes, counted atomically so parallel guesses cannot exceed the limit, and unknown emails are locked identically so responses do not reveal whether an account exists. Validation errors are re-shaped so that the default FastAPI 422 response does not echo submitted passwords. nginx adds per-IP rate limits on sign-in and on <code>/ask</code>.</p>
+
+<!-- ============ 5 ============ -->
+<h2>5&nbsp;&nbsp;Deployment</h2>
+<p>The reference deployment is a single Amazon Linux 2023 EC2 instance (t3.medium) whose instance role grants access to Claude Sonnet 4.5 on Bedrock and read access to a private S3 prefix; no credential is stored in the code or the repository. Because ibm.com refuses scripted downloads, the two IBM PDFs are downloaded once in a browser and uploaded to that prefix. <code>infra/setup.sh</code>, run from AWS Session Manager, is idempotent and performs:</p>
+<ol>
+  <li>Installation of git, Python 3.11, nginx and Node 22; creation of an unprivileged <code>jcl</code> system user with a mode-700 data directory for the account database.</li>
+  <li>Clone or fast-forward of the repository; creation of a virtual environment and dependency installation.</li>
+  <li>Retrieval of the IBM PDFs from S3 and, <em>only when the ingest code has changed</em>, a rebuild of the corpus and index. Change is detected by comparing the git tree hash of <code>rag-llm/ingest</code> with a stamp file written after the last complete build; an interrupted build leaves no stamp and is therefore redone.</li>
+  <li>Build of the front end and installation of a systemd unit running uvicorn on the loopback interface, with <code>UMask=0077</code> so the database is readable only by the service user.</li>
+  <li>An nginx configuration serving <code>frontend/dist</code> on port 80 and proxying <code>/ask</code>, <code>/auth</code> and <code>/docs</code>.</li>
+</ol>
+
+<!-- ============ 6 ============ -->
+<h2>6&nbsp;&nbsp;Usage</h2>
+<h3>6.1&nbsp;&nbsp;Local Development</h3>
+<p>A single virtual environment at the repository root serves both Python packages. The stub mode (<code>JCL_ASSISTANT_STUB=1</code>) returns a fixed answer and requires neither AWS credentials nor a built index, so the user interface and API can be developed independently of the model.</p>
+<pre><code>python -m venv .venv &amp;&amp; source .venv/bin/activate
+pip install -r backend/requirements.txt          # includes rag-llm/requirements.txt
+
+cd rag-llm
+python -m ingest.jcl      # clone CardDemo, chunk JCL         -> data/chunks/jcl.jsonl
+python -m ingest.ibm      # chunk IBM PDFs in data/raw/ibm     -> data/chunks/ibm.jsonl
+python -m ingest.index    # embed and index (~4 min)           -> data/index
+
+cd ../backend
+python -m api.users add you@company.com --name "Your Name"
+PYTHONPATH=../rag-llm JCL_ASSISTANT_STUB=1 uvicorn api.main:app --reload
+
+cd ../frontend &amp;&amp; npm ci &amp;&amp; npm run dev   # http://localhost:5173, proxies to :8000</code></pre>
+<h3>6.2&nbsp;&nbsp;Command-Line Query</h3>
+<p>With AWS credentials available, the pipeline can be exercised directly without the web tier:</p>
+<pre><code>cd rag-llm
+python -m rag.answer "STEP15 in POSTTRAN ended with S0C7, why?"</code></pre>
+<h3>6.3&nbsp;&nbsp;Account Administration</h3>
+<pre><code>python -m api.users add alex@company.com --name "Alex Rivera"   # prompts for password
+python -m api.users list
+python -m api.users reset-password alex@company.com            # also ends sessions
+python -m api.users disable alex@company.com                   # and: enable
+python -m api.users unlock alex@company.com                    # lift a lockout</code></pre>
+<h3>6.4&nbsp;&nbsp;Typical Interactions</h3>
+<p>Supported question forms include job explanation ("What does CLOSEFIL do and why would I run it before the batch?"), pasted log lines ("<code>IEF212I POSTTRAN STEP15 DALYTRAN - DATA SET NOT FOUND</code>"), abend diagnosis with job context ("CREASTMT abended S322 in STEP040. How do I fix it?"), JCL errors ("the log says <code>IEF453I CREASTMT - JOB FAILED - JCL ERROR</code>"), and follow-ups that rely on conversation history ("what does line 41 do?").</p>
+
+<!-- ============ 7 ============ -->
+<h2>7&nbsp;&nbsp;Testing and Evaluation</h2>
+<h3>7.1&nbsp;&nbsp;Automated Tests</h3>
+<p>Unit tests cover each layer without AWS access or a built corpus: JCL and IBM chunking, index construction, code recognition and lookup, job/step lookup and the generation loop with a fake Bedrock client in <code>rag-llm</code>; the <code>/ask</code> contract, sign-in, sessions, lockout and the accounts CLI in <code>backend</code>; the evaluation scorer in <code>eval</code>; and API client, chat storage, detection and formatting in the front end. GitHub Actions runs all suites, plus front-end lint and production build, on every pull request and on every push to <code>main</code>.</p>
+<h3>7.2&nbsp;&nbsp;Evaluation Methodology</h3>
+<p><code>eval/scenarios.yaml</code> defines ten scenarios drawn from real CardDemo jobs. Each specifies a question, an expected cause written by the team, keyword groups and the sources that must be cited. <code>eval/run_eval.py</code> signs in and submits each question to <code>/ask</code> exactly as the chat client does, and scores two binary criteria:</p>
+<ul>
+  <li><strong>source_ok</strong> — every expected source appears among the returned citations (for the out-of-scope scenario: no citations are returned);</li>
+  <li><strong>answer_ok</strong> — the answer contains at least one term from every keyword group and no forbidden term (for the out-of-scope scenario: the answer begins with the refusal string).</li>
+</ul>
+<p>Results, including the full answer and the expected cause, are written to CSV for human review alongside the automatic scores.</p>
+<h3>7.3&nbsp;&nbsp;Results</h3>
+<p>The first evaluation against the deployed EC2 service was run on November 4, 2026 (<code>eval/results/2026-11-04-1319.csv</code>). Table 2 summarises the outcome.</p>
+<div class="tw"><table>
+  <thead><tr><th style="width:23%">Scenario</th><th style="width:15%">Codes detected</th><th>Citations returned</th><th style="width:7%">Src</th><th style="width:7%">Ans</th><th style="width:7%">s</th></tr></thead>
+  <tbody>
+    <tr><td class="mono">jcl-posttran</td><td>—</td><td>POSTTRAN.jcl 18–45</td><td class="pass">✓</td><td class="pass">✓</td><td>4.8</td></tr>
+    <tr><td class="mono">jcl-intcalc</td><td>—</td><td>INTCALC.jcl 18–44</td><td class="pass">✓</td><td class="pass">✓</td><td>6.0</td></tr>
+    <tr><td class="mono">jcl-closefil</td><td>—</td><td>CLOSEFIL.jcl 18–34</td><td class="pass">✓</td><td class="pass">✓</td><td>5.9</td></tr>
+    <tr><td class="mono">abend-s0c7-posttran</td><td>IEF450I, S0C7</td><td>Messages IEF450I p.257; Codes 0Cx p.194; POSTTRAN.jcl</td><td class="pass">✓</td><td class="pass">✓</td><td>10.8</td></tr>
+    <tr><td class="mono">abend-s0c4-intcalc</td><td>S0C4</td><td>Codes 0Cx p.194; INTCALC.jcl</td><td class="pass">✓</td><td class="pass">✓</td><td>10.2</td></tr>
+    <tr><td class="mono">abend-s806</td><td>IEF450I, S806</td><td>Codes 806 p.497; INTCALC.jcl</td><td class="pass">✓</td><td class="pass">✓</td><td>6.3</td></tr>
+    <tr><td class="mono">abend-s322-creastmt</td><td>S322</td><td>Codes 322 p.371; CREASTMT.JCL 76–97</td><td class="pass">✓</td><td class="pass">✓</td><td>6.2</td></tr>
+    <tr><td class="mono">msg-ief212i-dalytran</td><td>IEF212I</td><td>Messages IEF212I p.134; POSTTRAN.jcl</td><td class="pass">✓</td><td class="pass">✓</td><td>7.0</td></tr>
+    <tr><td class="mono">jcl-error-ief453i</td><td>IEF453I</td><td>Messages IEF453I p.260; CREASTMT.JCL</td><td class="pass">✓</td><td class="pass">✓</td><td>8.5</td></tr>
+    <tr><td class="mono">not-found-rexx</td><td>—</td><td>(none — refused, as expected)</td><td class="pass">✓</td><td class="pass">✓</td><td>2.1</td></tr>
+  </tbody>
+</table>
+<div class="caption"><b>Table 2.</b> First evaluation against the deployed service: 10/10 source checks and 10/10 answer checks passed. Latency is end-to-end <code>/ask</code> time in seconds.</div></div>
+<p>All ten scenarios passed both criteria. Answers that required only job JCL completed in about 5–6 s; abend diagnoses combining IBM entries with job JCL took 6–11 s; the out-of-scope refusal took 2.1 s. The approximate cost per answer was US$0.04. Two observations are worth noting. In the S0C7 and S0C4 scenarios the correct sub-code paragraph was cited from the shared <code>0Cx</code> family entry, validating the family fallback and focusing logic of §4.3. And the out-of-scope question produced the exact refusal with no citations, demonstrating that the grounding constraint holds rather than the model answering from general knowledge.</p>
+<p>The evaluation set is small and was written by the developers; it demonstrates that the pipeline works end to end on representative cases, not that it generalises. Keyword scoring is a coarse proxy for correctness, which is why the full answers are retained for manual review.</p>
+
+<!-- ============ 8 ============ -->
+<h2>8&nbsp;&nbsp;Limitations and Future Work</h2>
+<h3>8.1&nbsp;&nbsp;Retrieval and Coverage</h3>
+<ul>
+  <li><strong>Corpus breadth.</strong> Only System Messages Volume 8 (IEF–IGD) is indexed. Messages from other prefixes (for example IEC data-management messages, documented in other volumes) are not covered, and neither are user abends issued by application programs or Language Environment run-time messages.</li>
+  <li><strong>Run-time evidence.</strong> The assistant reasons over JCL configuration and documentation, not over the actual job output (SYSOUT, dumps, data set contents). It can explain what an S0C7 means for the program a step runs, but cannot identify the offending record.</li>
+  <li><strong>Embedding model.</strong> The small local embedding model and fixed ~700-character parts were chosen for cost and simplicity; a larger or domain-tuned embedding model and reranking were not evaluated.</li>
+  <li><strong>Evaluation scale.</strong> Ten scenarios with keyword scoring is a smoke test; a larger, independently written test set with graded human or model-judged correctness would be needed to measure accuracy.</li>
+</ul>
+<h3>8.2&nbsp;&nbsp;Production Readiness</h3>
+<p>The authentication layer is sized for a multi-user proof of concept. The repository documents the following as separate work items before production use: HTTPS with a domain and certificate, followed by <code>JCL_COOKIE_SECURE=1</code> (the POC serves plain HTTP behind an IP allow list with test-only accounts); a managed, backed-up database in place of a single SQLite file; workspaces and roles; company single sign-on (SAML or OIDC); invitations, sign-up and an administration screen; password recovery and two-factor authentication; server-side chat history; an audit log of sign-ins and questions; configurable password and session policy; and lockout that cannot be used to deny service to a colleague — currently anyone who can reach the application can lock an account for 15 minutes — via per-IP or device-aware throttling or CAPTCHA.</p>
+
+<!-- ============ 9 ============ -->
+<h2>9&nbsp;&nbsp;Conclusion</h2>
+<p>The JCL Analyzer &amp; Abend Assistant shows that a retrieval-augmented assistant can give mainframe engineers short, actionable explanations of batch failures while keeping every claim traceable to IBM documentation or to the job's own JCL. The central design decisions — structural chunking that preserves job, step, code and page identity; deterministic recognition and exact lookup in front of semantic search; a model constrained to numbered sources with an explicit refusal; and post-hoc citation validation — address the specific risk of fluent but unsupported answers in an operational setting. The system is deployed, reproducibly built and continuously tested, and passed its first end-to-end evaluation. Broadening the corpus, incorporating run-time job output and hardening the authentication layer are the principal steps toward production use.</p>
+
+<!-- ============ REFERENCES ============ -->
+<h2>References</h2>
+<ol class="refs">
+  <li id="r1">Amazon Web Services. <em>CardDemo: AWS Mainframe Modernization sample application.</em> github.com/aws-samples/aws-mainframe-modernization-carddemo, commit 59cc6c2.</li>
+  <li id="r2">IBM Corporation. <em>z/OS 3.1 MVS System Codes</em> (ieah700_v3r1.pdf). ibm.com/docs/en/SSLTBW_3.1.0.</li>
+  <li id="r3">IBM Corporation. <em>z/OS 3.1 MVS System Messages, Volume 8 (IEF–IGD)</em> (ieam800_v3r1.pdf). ibm.com/docs/en/SSLTBW_3.1.0.</li>
+  <li id="r4">Anthropic. <em>Claude Sonnet 4.5</em>, accessed via Amazon Bedrock (model ID <code>us.anthropic.claude-sonnet-4-5-20250929-v1:0</code>).</li>
+  <li id="r5">Reimers, N. and Gurevych, I. "Sentence-BERT: Sentence Embeddings using Siamese BERT-Networks." <em>EMNLP</em>, 2019. (all-MiniLM-L6-v2 model, sentence-transformers.)</li>
+  <li id="r6">Lewis, P. et al. "Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks." <em>NeurIPS</em>, 2020.</li>
+  <li id="r7">OWASP Foundation. <em>Password Storage Cheat Sheet</em> (scrypt parameters).</li>
+</ol>
+
+<!-- ============ APPENDIX ============ -->
+<h2>Appendix A&nbsp;&nbsp;Configuration Reference</h2>
+<div class="tw"><table>
+  <thead><tr><th style="width:28%">Setting</th><th style="width:34%">Default</th><th>Purpose</th></tr></thead>
+  <tbody>
+    <tr><td class="mono">BEDROCK_MODEL_ID</td><td class="mono" style="white-space:normal;word-break:break-all">us.anthropic.claude-sonnet-4-5-20250929-v1:0</td><td>Model used for generation</td></tr>
+    <tr><td class="mono">AWS_REGION</td><td class="mono">us-east-1</td><td>Bedrock region</td></tr>
+    <tr><td class="mono">JCL_ASSISTANT_STUB</td><td class="mono">unset</td><td><code>1</code> returns a fixed answer (no AWS, no index)</td></tr>
+    <tr><td class="mono">JCL_DB</td><td class="mono">backend/jcl.db</td><td>SQLite file with accounts and sessions</td></tr>
+    <tr><td class="mono">JCL_COOKIE_SECURE</td><td class="mono">0</td><td><code>1</code> adds the Secure cookie flag (HTTPS only)</td></tr>
+    <tr><td class="mono">IBM_PDFS_S3</td><td class="mono">unset</td><td>S3 prefix holding the IBM PDFs (setup.sh)</td></tr>
+    <tr><td class="mono">REBUILD_INDEX</td><td class="mono">0</td><td><code>1</code> forces a corpus/index rebuild (setup.sh)</td></tr>
+  </tbody>
+</table>
+<div class="caption"><b>Table A1.</b> Environment variables.</div></div>
+<div class="tw"><table>
+  <thead><tr><th style="width:28%">Constant</th><th style="width:16%">Value</th><th>Location and effect</th></tr></thead>
+  <tbody>
+    <tr><td class="mono">MAX_TURNS</td><td>4</td><td><code>rag/answer.py</code> — model calls per question</td></tr>
+    <tr><td class="mono">ENTRY_CHARS / SNIPPET_CHARS</td><td>6000 / 400</td><td><code>rag/answer.py</code> — source text sent to the model / returned to the client</td></tr>
+    <tr><td class="mono">HISTORY_TURNS / HISTORY_CHARS</td><td>3 / 2000</td><td><code>rag/answer.py</code> — conversation context</td></tr>
+    <tr><td class="mono">PART_CHARS</td><td>700</td><td><code>ingest/index.py</code> — maximum embedded part size</td></tr>
+    <tr><td class="mono">MAX_JOBS</td><td>2</td><td><code>rag/jobs.py</code> — jobs matched per question</td></tr>
+    <tr><td class="mono">SESSION / REMEMBER</td><td>12 h / 30 d</td><td><code>api/auth.py</code> — session lifetime</td></tr>
+    <tr><td class="mono">MAX_FAILED / LOCK</td><td>5 / 15 min</td><td><code>api/auth.py</code> — lockout policy</td></tr>
+  </tbody>
+</table>
+<div class="caption"><b>Table A2.</b> Tunable constants in the source.</div></div>
+
+</body>
+</html>
