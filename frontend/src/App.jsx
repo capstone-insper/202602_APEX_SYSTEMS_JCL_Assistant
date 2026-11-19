@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { ask, historyFor, logout, me, SignedOut } from './api.js'
 import { chatMeta, loadChats, newId, saveChats } from './chats.js'
 import { Wordmark } from './components/Brand.jsx'
@@ -115,6 +115,7 @@ function Chat({ user, onSignOut, onSessionEnded }) {
   const [sourcesClosed, setSourcesClosed] = useState(() => readFlag(SOURCES_KEY))
   useEffect(() => writeFlag(SOURCES_KEY, sourcesClosed), [sourcesClosed])
   const sourcesOpen = sourceCount > 0 && !sourcesClosed
+  const sourcesToggle = useRef(null) // the header button: focus goes back there when the panel closes
 
   function patchTurn(chatId, turnId, patch) {
     setChats((cs) =>
@@ -222,7 +223,7 @@ function Chat({ user, onSignOut, onSessionEnded }) {
         chat={chat}
         meta={chat ? chatMeta(chat) : null}
         busy={busy}
-        selection={selectedTurn && { turnId: selectedTurn.id, n: selectedN }}
+        selection={sourcesOpen ? { turnId: selectedTurn.id, n: selectedN } : null} // no citation marked as shown while the panel is closed
         onSend={send}
         onRetry={retry}
         onCite={(turnId, n) => {
@@ -230,12 +231,16 @@ function Chat({ user, onSignOut, onSessionEnded }) {
           setSourcesClosed(false)
         }}
         sources={{ count: sourceCount, open: sourcesOpen, toggle: () => setSourcesClosed((v) => !v) }}
+        sourcesToggle={sourcesToggle}
       />
       <Sources
         turn={selectedTurn}
         n={selectedN}
         onSelect={(n) => selectedTurn && setSelection({ turnId: selectedTurn.id, n })}
-        onClose={() => setSourcesClosed(true)}
+        onClose={() => {
+          setSourcesClosed(true)
+          sourcesToggle.current?.focus() // the close button disappears with the panel; keep keyboard users in place
+        }}
       />
       <Confirm
         request={confirm}

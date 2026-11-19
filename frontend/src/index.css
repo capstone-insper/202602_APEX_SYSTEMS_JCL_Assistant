@@ -624,22 +624,6 @@ pre {
   color: var(--muted);
 }
 
-.pulse {
-  display: inline-block;
-  width: 8px;
-  height: 8px;
-  margin-right: 4px;
-  border-radius: 50%;
-  background: var(--accent);
-  animation: pulse 1s ease-in-out infinite alternate;
-}
-
-@keyframes pulse {
-  from {
-    opacity: 0.25;
-  }
-}
-
 .btn {
   height: 28px;
   padding: 0 12px;
@@ -819,7 +803,7 @@ pre {
 }
 
 
-/* narrower screens: sources under the thread (only the header until there is something to show),
+/* narrower screens: sources under the thread (hidden while there is nothing to show),
    then the sidebar opens over the thread */
 
 @media (max-width: 1100px) {
@@ -844,10 +828,6 @@ pre {
   .sources {
     max-height: 45vh;
     border-top: 1px solid var(--line);
-  }
-
-  .sources.idle .sources-body {
-    display: none;
   }
 }
 
@@ -1426,6 +1406,13 @@ body {
 
 .notice.error {
   margin-left: 54px;
+}
+
+/* this section comes after the narrow-screen rules above, so it repeats their phone margin */
+@media (max-width: 760px) {
+  .notice.error {
+    margin-left: 12px;
+  }
 }
 
 .role {

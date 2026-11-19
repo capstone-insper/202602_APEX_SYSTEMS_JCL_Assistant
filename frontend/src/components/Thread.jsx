@@ -19,7 +19,7 @@ const EXAMPLES = [
 // What Freddie is doing while the answer is built: the same steps the RAG runs, in order.
 const STEPS = ['Spotting the codes', 'Opening the IBM manuals', 'Reading the job’s JCL', 'Checking every citation']
 
-export default function Thread({ user, chat, meta, busy, selection, onSend, onRetry, onCite, sources }) {
+export default function Thread({ user, chat, meta, busy, selection, onSend, onRetry, onCite, sources, sourcesToggle }) {
   const end = useRef(null)
   const [draft, setDraft] = useState('')
   const [focusTick, setFocusTick] = useState(0) // bumped to move the cursor to the composer
@@ -37,6 +37,7 @@ export default function Thread({ user, chat, meta, busy, selection, onSend, onRe
         <h1 className="ellipsis">{meta?.title || 'New chat'}</h1>
         {sources?.count > 0 && (
           <button
+            ref={sourcesToggle}
             className={'sources-toggle' + (sources.open ? ' on' : '')}
             onClick={sources.toggle}
             aria-pressed={sources.open}
@@ -151,6 +152,7 @@ function Question({ text }) {
   )
 }
 
+// The mark is the answer's role label (the question has "you"), so screen readers hear "Freddie" there.
 function Loading({ question }) {
   const codes = findCodes(question)
   const [step, setStep] = useState(0)
@@ -162,7 +164,7 @@ function Loading({ question }) {
   return (
     <div className="answer loading">
       <span className="role">
-        <Mark size={22} />
+        <Mark size={22} title="Freddie" />
       </span>
       <div className="thinking">
         <span className="thinking-cursor" />
@@ -180,7 +182,7 @@ function Answer({ id, question, result, activeN, onCite }) {
     return (
       <div className="answer">
         <span className="role">
-          <Mark size={22} />
+          <Mark size={22} title="Freddie" />
         </span>
         <div className="answer-body">
           <DetectedTags {...found} />
@@ -195,7 +197,7 @@ function Answer({ id, question, result, activeN, onCite }) {
   return (
     <div className="answer">
       <span className="role">
-        <Mark size={22} />
+        <Mark size={22} title="Freddie" />
       </span>
       <div className="answer-body">
         <DetectedTags {...found} />
