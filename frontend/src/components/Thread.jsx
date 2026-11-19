@@ -19,7 +19,7 @@ const EXAMPLES = [
 // What Freddie is doing while the answer is built: the same steps the RAG runs, in order.
 const STEPS = ['Spotting the codes', 'Opening the IBM manuals', 'Reading the job’s JCL', 'Checking every citation']
 
-export default function Thread({ user, chat, meta, busy, selection, onSend, onRetry, onCite, sources }) {
+export default function Thread({ user, chat, meta, busy, selection, onSend, onRetry, onCite, sources, sourcesToggle }) {
   const end = useRef(null)
   const [draft, setDraft] = useState('')
   const [focusTick, setFocusTick] = useState(0) // bumped to move the cursor to the composer
@@ -37,6 +37,7 @@ export default function Thread({ user, chat, meta, busy, selection, onSend, onRe
         <h1 className="ellipsis">{meta?.title || 'New chat'}</h1>
         {sources?.count > 0 && (
           <button
+            ref={sourcesToggle}
             className={'sources-toggle' + (sources.open ? ' on' : '')}
             onClick={sources.toggle}
             aria-pressed={sources.open}
