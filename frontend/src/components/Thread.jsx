@@ -152,6 +152,7 @@ function Question({ text }) {
   )
 }
 
+// The mark is the answer's role label (the question has "you"), so screen readers hear "Freddie" there.
 function Loading({ question }) {
   const codes = findCodes(question)
   const [step, setStep] = useState(0)
@@ -163,7 +164,7 @@ function Loading({ question }) {
   return (
     <div className="answer loading">
       <span className="role">
-        <Mark size={22} />
+        <Mark size={22} title="Freddie" />
       </span>
       <div className="thinking">
         <span className="thinking-cursor" />
@@ -181,7 +182,7 @@ function Answer({ id, question, result, activeN, onCite }) {
     return (
       <div className="answer">
         <span className="role">
-          <Mark size={22} />
+          <Mark size={22} title="Freddie" />
         </span>
         <div className="answer-body">
           <DetectedTags {...found} />
@@ -196,7 +197,7 @@ function Answer({ id, question, result, activeN, onCite }) {
   return (
     <div className="answer">
       <span className="role">
-        <Mark size={22} />
+        <Mark size={22} title="Freddie" />
       </span>
       <div className="answer-body">
         <DetectedTags {...found} />
