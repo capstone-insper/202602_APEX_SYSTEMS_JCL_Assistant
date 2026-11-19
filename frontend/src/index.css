@@ -1428,6 +1428,13 @@ body {
   margin-left: 54px;
 }
 
+/* this section comes after the narrow-screen rules above, so it repeats their phone margin */
+@media (max-width: 760px) {
+  .notice.error {
+    margin-left: 12px;
+  }
+}
+
 .role {
   padding-top: 1px;
 }
