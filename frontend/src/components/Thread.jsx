@@ -3,18 +3,27 @@ import { isNotFound } from '../api.js'
 import { isLogLine } from '../chats.js'
 import { detect, findCodes } from '../detect.js'
 import { asText, LIST_RE, runs, seconds } from '../format.js'
+import { firstName, greeting } from '../greeting.js'
+import { notFoundTitle } from '../notFound.js'
+import { Mark } from './Brand.jsx'
 import { DetectedTags } from './Tags.jsx'
 
+// Example questions a user would type (a log line is pasted, not picked from a list).
+// All three are evaluation scenarios the RAG answered correctly on Nov 4.
 const EXAMPLES = [
-  'IEF450I POSTTRAN STEP15 - ABEND=S0C7 U0000 REASON=00000000',
-  'What does the INTCALC job do?',
-  'S806 in a CardDemo batch job, how do I fix it?',
+  { text: 'What does the INTCALC job do?' },
+  { text: 'CREASTMT abended S322 in STEP040. How do I fix it?' },
+  { text: 'Why would I run CLOSEFIL before the batch?' },
 ]
 
-export default function Thread({ chat, meta, busy, selection, onSend, onRetry, onCite }) {
+// What Freddie is doing while the answer is built: the same steps the RAG runs, in order.
+const STEPS = ['Spotting the codes', 'Opening the IBM manuals', 'Reading the job’s JCL', 'Checking every citation']
+
+export default function Thread({ user, chat, meta, busy, selection, onSend, onRetry, onCite, sources }) {
   const end = useRef(null)
   const [draft, setDraft] = useState('')
   const [focusTick, setFocusTick] = useState(0) // bumped to move the cursor to the composer
+  const [hello] = useState(() => greeting({ name: firstName(user?.name) })) // once per chat: stable while typing
   const turns = chat?.turns || []
   const last = turns[turns.length - 1]
 
@@ -26,23 +35,38 @@ export default function Thread({ chat, meta, busy, selection, onSend, onRetry, o
     <main className="thread">
       <header className="bar">
         <h1 className="ellipsis">{meta?.title || 'New chat'}</h1>
+        {sources?.count > 0 && (
+          <button
+            className={'sources-toggle' + (sources.open ? ' on' : '')}
+            onClick={sources.toggle}
+            aria-pressed={sources.open}
+            title={sources.open ? 'Hide sources' : 'Show sources'}
+          >
+            <SourcesIcon />
+            Sources <span className="sources-count">{sources.count}</span>
+          </button>
+        )}
       </header>
 
       <div className="turns">
         {!turns.length && (
           <div className="empty">
-            <p>Paste a job log, an abend code or a message id, or ask about a CardDemo job.</p>
-            <p className="muted">Answers come only from the CardDemo JCL and the IBM MVS manuals, with citations.</p>
-            <ul className="examples">
+            <h2 className="hello">{hello}</h2>
+            <p className="hello-sub">Paste a job log line or an abend code, or ask something like:</p>
+            <ul className="suggestions">
               {EXAMPLES.map((e) => (
-                <li key={e}>
+                <li key={e.text}>
+                  <span className="suggestion-arrow" aria-hidden="true">
+                    ↳
+                  </span>
                   <button
+                    className="bubble"
                     onClick={() => {
-                      setDraft(e)
+                      setDraft(e.text)
                       setFocusTick((n) => n + 1)
                     }}
                   >
-                    {e}
+                    {e.text}
                   </button>
                 </li>
               ))}
@@ -72,7 +96,7 @@ export default function Thread({ chat, meta, busy, selection, onSend, onRetry, o
 // One line for screen readers when the last turn changes state.
 function status(turn) {
   if (!turn) return ''
-  if (turn.status === 'loading') return 'Searching the docs.'
+  if (turn.status === 'loading') return 'Freddie is reading the docs.'
   if (turn.status === 'error') return 'No answer: ' + turn.error
   if (isNotFound(turn.result)) return 'Not found in the docs.'
   return `Answer ready, ${turn.result.citations.length} sources.`
@@ -94,7 +118,7 @@ function Turn({ turn, activeN, onCite, onRetry }) {
           </button>
         </div>
       )}
-      {status === 'done' && <Answer question={question} result={result} activeN={activeN} onCite={onCite} />}
+      {status === 'done' && <Answer id={turn.id} question={question} result={result} activeN={activeN} onCite={onCite} />}
       {status === 'done' && <AnswerFoot question={question} result={result} ms={turn.ms} />}
     </article>
   )
@@ -111,7 +135,7 @@ function Question({ text }) {
   }
   return (
     <div className="question">
-      <span className="role">Q</span>
+      <span className="role you">you</span>
       <div className="question-body">
         {blocks.map((b, i) =>
           b.log ? (
@@ -129,27 +153,39 @@ function Question({ text }) {
 
 function Loading({ question }) {
   const codes = findCodes(question)
+  const [step, setStep] = useState(0)
+  useEffect(() => {
+    const t = setInterval(() => setStep((s) => Math.min(s + 1, STEPS.length - 1)), 1700)
+    return () => clearInterval(t)
+  }, [])
+  const label = step === 0 && codes.length ? `Spotting the codes: ${codes.join(', ')}` : STEPS[step]
   return (
     <div className="answer loading">
-      <span className="role">A</span>
-      <div>
-        <span className="pulse" /> {codes.length ? `Searching the docs for ${codes.join(', ')}...` : 'Searching the docs...'}
+      <span className="role">
+        <Mark size={22} />
+      </span>
+      <div className="thinking">
+        <span className="thinking-cursor" />
+        <span key={step} className="thinking-step">
+          {label}…
+        </span>
       </div>
     </div>
   )
 }
 
-function Answer({ question, result, activeN, onCite }) {
+function Answer({ id, question, result, activeN, onCite }) {
   const found = detect(question, result.codes, result.citations)
   if (isNotFound(result)) {
     return (
       <div className="answer">
-        <span className="role">A</span>
+        <span className="role">
+          <Mark size={22} />
+        </span>
         <div className="answer-body">
           <DetectedTags {...found} />
           <div className="notice warn">
-            <strong>Not found in the docs.</strong> The CardDemo JCL and the IBM MVS manuals do not cover this, so
-            there is no answer rather than a guess.
+            <strong>{notFoundTitle(id)}</strong> The IBM MVS manuals and the CardDemo JCL don’t cover this.
           </div>
           <p className="muted small">Try the job log, an abend code (S0C7, S806, S322) or a message id (IEF450I).</p>
         </div>
@@ -158,7 +194,9 @@ function Answer({ question, result, activeN, onCite }) {
   }
   return (
     <div className="answer">
-      <span className="role">A</span>
+      <span className="role">
+        <Mark size={22} />
+      </span>
       <div className="answer-body">
         <DetectedTags {...found} />
         <AnswerText text={result.answer} activeN={activeN} onCite={onCite} count={result.citations.length} />
@@ -282,7 +320,7 @@ function Composer({ focusTick, busy, hasTurns, text, setText, onSend }) {
         maxLength={4000}
         autoFocus
         aria-label="Question or job log"
-        placeholder={busy ? 'Waiting for the answer...' : hasTurns ? 'Ask a follow-up or paste another log' : 'Paste a job log or ask a question'}
+        placeholder={busy ? 'Freddie is on it...' : hasTurns ? 'Ask Freddie a follow-up, or paste another log' : 'Paste a job log or ask Freddie a question'}
         onChange={(e) => setText(e.target.value)}
         onKeyDown={(e) => {
           if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
@@ -299,13 +337,22 @@ function Composer({ focusTick, busy, hasTurns, text, setText, onSend }) {
               <DetectedTags {...found} />
             </>
           ) : (
-            <span className="muted small">Enter to ask, Shift+Enter for a new line. Each question is answered on its own.</span>
+            <span className="muted small">Enter to send, Shift+Enter for a new line</span>
           )}
         </div>
-        <button className="btn primary" type="submit" disabled={busy || !text.trim()}>
-          Ask
+        <button className="btn primary ask" type="submit" disabled={busy || !text.trim()}>
+          Ask Freddie
         </button>
       </div>
     </form>
+  )
+}
+
+function SourcesIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+      <rect x="1.75" y="2.75" width="12.5" height="10.5" rx="1.5" />
+      <path d="M10 3v10" />
+    </svg>
   )
 }

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { chatMeta } from '../chats.js'
 import logo from '../assets/everforth-apex-white.png'
+import { Mark, Wordmark } from './Brand.jsx'
 import { CodeTag } from './Tags.jsx'
 
 export default function Sidebar({ user, onSignOut, chats, activeId, collapsed, onToggle, onOpen, onNew, onDelete, onClear }) {
@@ -10,6 +11,9 @@ export default function Sidebar({ user, onSignOut, chats, activeId, collapsed, o
   if (collapsed) {
     return (
       <aside className="sidebar rail">
+        <button className="rail-mark" onClick={onNew} title="Freddie: new chat" aria-label="Freddie, new chat">
+          <Mark size={28} />
+        </button>
         <button className="icon-btn" onClick={onToggle} title="Open sidebar" aria-label="Open sidebar">
           <PanelIcon />
         </button>
@@ -40,7 +44,9 @@ export default function Sidebar({ user, onSignOut, chats, activeId, collapsed, o
   return (
     <aside className="sidebar">
       <div className="sidebar-head">
-        <span className="brand">JCL Assistant</span>
+        <button className="brand" onClick={onNew} title="New chat" aria-label="Freddie, new chat">
+          <Wordmark size={19} cursor={false} />
+        </button>
         <button className="icon-btn" onClick={onToggle} title="Collapse sidebar" aria-label="Collapse sidebar">
           <PanelIcon />
         </button>
@@ -103,7 +109,7 @@ export default function Sidebar({ user, onSignOut, chats, activeId, collapsed, o
         )}
       </nav>
 
-      <img className="logo" src={logo} alt="Everforth Apex Systems" width="148" height="29" />
+      <img className="logo" src={logo} alt="Everforth Apex Systems" width="104" height="20" />
       <footer className="user">
         <span className="avatar">{initials(user.name)}</span>
         <div className="user-text">
