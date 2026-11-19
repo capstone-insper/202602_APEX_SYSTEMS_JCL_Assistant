@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import { login } from '../api.js'
 import logo from '../assets/everforth-apex-white.png'
+import { Wordmark } from './Brand.jsx'
 import SignInDemo from './SignInDemo.jsx'
 
 // Sign-in screen (Figma mockups 0a and 0b). Accounts are created by an admin, so there is no
@@ -32,16 +33,27 @@ export default function SignIn({ notice, onSignedIn }) {
     <div className="signin">
       <section className="signin-brand">
         <div className="signin-pitch">
-          <h1 className="signin-name">JCL Assistant</h1>
-          <p className="signin-tagline">Understand JCL jobs and abends in seconds.</p>
+          <h1 className="signin-name">
+            <Wordmark size={60} />
+          </h1>
+          <p className="signin-tagline">
+            Every failed job, explained.
+          </p>
+          <p className="signin-sub">Paste the log line. Freddie finds the cause, the fix and the manual page it came from.</p>
           <SignInDemo />
         </div>
-        <img className="logo" src={logo} alt="Everforth Apex Systems" width="148" height="29" />
+        <div className="signin-foot">
+          <img className="logo" src={logo} alt="Everforth Apex Systems" width="132" height="26" />
+        </div>
       </section>
+
+      {/* phones: the brand panel is hidden, so the wordmark keeps its dark background in a top bar */}
+      <header className="signin-bar">
+        <Wordmark size={24} />
+      </header>
 
       <main className="signin-main">
         <form className="signin-form" onSubmit={submit}>
-          <span className="signin-name signin-small-name">JCL Assistant</span>
           <h2>Sign in</h2>
           <p className="muted">Use the account your administrator created for you.</p>
           {notice && !error && (

@@ -28,7 +28,7 @@ function describe({ source, locator }) {
   }
 }
 
-export default function Sources({ turn, n, onSelect }) {
+export default function Sources({ turn, n, onSelect, onClose }) {
   const cites = turn?.status === 'done' ? turn.result.citations : []
   const count = turn?.status === 'done' ? `${cites.length} cited` : turn?.status === 'loading' ? 'loading' : ''
 
@@ -70,6 +70,9 @@ export default function Sources({ turn, n, onSelect }) {
       <header className="bar">
         <h2>Sources</h2>
         <span className="muted small">{count}</span>
+        <button className="sources-close" onClick={onClose} title="Hide sources" aria-label="Hide sources">
+          ×
+        </button>
       </header>
       <div className="sources-body">{body}</div>
     </aside>

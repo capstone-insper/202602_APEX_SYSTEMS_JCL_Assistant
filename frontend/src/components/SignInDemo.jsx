@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import Typed from 'typed.js'
+import { Mark } from './Brand.jsx'
 
 // Sign-in screen showcase: a question is typed, then its answer appears, through a few fixed
 // examples. Illustrative text taken from the eval scenarios, not live answers.
@@ -31,7 +32,7 @@ const EXAMPLES = [
   {
     q: 'How do I write a REXX exec that lists my data sets?',
     codes: [],
-    a: 'Not found in the docs.',
+    a: 'Not in the manuals or the CardDemo JCL, so I won’t guess.',
     source: null,
   },
 ]
@@ -70,15 +71,20 @@ export default function SignInDemo() {
   const ex = shown === null ? null : EXAMPLES[shown]
   return (
     <div className="demo" aria-hidden="true">
+      <div className="demo-card">
+        <span className="demo-slash">//</span>ONCALL&nbsp;&nbsp;&nbsp;EXEC PGM=FREDDIE
+      </div>
       <div className="demo-q">
-        <span className="demo-role">Q</span>
+        <span className="demo-role">you</span>
         <span>
           {/* typed.js adds its cursor right after this span; the wrapper keeps it on the same line */}
           <span className="demo-typed" ref={typedRef} />
         </span>
       </div>
       <div className={'demo-a' + (ex ? ' on' : '')}>
-        <span className="demo-role">A</span>
+        <span className="demo-role">
+          <Mark size={20} />
+        </span>
         {ex && (
           <div>
             {ex.codes.length > 0 && (

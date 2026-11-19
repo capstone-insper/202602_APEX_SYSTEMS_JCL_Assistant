@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { ask, historyFor, logout, me, SignedOut } from './api.js'
 import { chatMeta, loadChats, newId, saveChats } from './chats.js'
+import { Wordmark } from './components/Brand.jsx'
 import Confirm from './components/Confirm.jsx'
 import Sidebar from './components/Sidebar.jsx'
 import SignIn from './components/SignIn.jsx'
@@ -74,7 +75,8 @@ export default function App() {
 function Unavailable({ message, onRetry }) {
   return (
     <main className="unavailable" role="alert">
-      <span className="brand">JCL Assistant</span>
+      <Wordmark size={40} />
+      <h1 className="unavailable-title">Freddie is off shift for a moment.</h1>
       <p>{message} Your session, if any, is kept.</p>
       <button className="btn primary" onClick={onRetry}>
         Try again
@@ -106,6 +108,14 @@ function Chat({ user, onSignOut, onSessionEnded }) {
     turns.find((t) => t.id === selection?.turnId) || turns[turns.length - 1] || null
   const selectedN = selection && selection.turnId === selectedTurn?.id ? selection.n : 1
 
+  // Sources panel: hidden when there is nothing to show; opens by itself when a new answer with
+  // citations arrives (in run) or on a citation click. Closing it is remembered, also on reload;
+  // moving between chats keeps the user's choice.
+  const sourceCount = selectedTurn?.status === 'done' ? selectedTurn.result.citations.length : 0
+  const [sourcesClosed, setSourcesClosed] = useState(() => readFlag(SOURCES_KEY))
+  useEffect(() => writeFlag(SOURCES_KEY, sourcesClosed), [sourcesClosed])
+  const sourcesOpen = sourceCount > 0 && !sourcesClosed
+
   function patchTurn(chatId, turnId, patch) {
     setChats((cs) =>
       cs.map((c) =>
@@ -119,6 +129,7 @@ function Chat({ user, onSignOut, onSessionEnded }) {
     try {
       const result = await ask(question, history)
       patchTurn(chatId, turnId, { status: 'done', result, error: null, ms: Math.round(performance.now() - start) })
+      if (result.citations.length) setSourcesClosed(false)
     } catch (e) {
       patchTurn(chatId, turnId, { status: 'error', error: e.message })
       if (e instanceof SignedOut) setEnded(true) // "Try again" works after signing back in
@@ -169,7 +180,7 @@ function Chat({ user, onSignOut, onSessionEnded }) {
   }
 
   return (
-    <div className={'app' + (collapsed ? ' collapsed' : '')}>
+    <div className={'app' + (collapsed ? ' collapsed' : '') + (sourcesOpen ? '' : ' sources-off')}>
       {/* narrow screens: the open sidebar is a drawer over the chat; a tap outside closes it */}
       {!collapsed && <div className="scrim" onClick={() => setCollapsed(true)} aria-hidden="true" />}
       <Sidebar
@@ -207,18 +218,24 @@ function Chat({ user, onSignOut, onSessionEnded }) {
       />
       <Thread
         key={activeId || 'new'}
+        user={user}
         chat={chat}
         meta={chat ? chatMeta(chat) : null}
         busy={busy}
         selection={selectedTurn && { turnId: selectedTurn.id, n: selectedN }}
         onSend={send}
         onRetry={retry}
-        onCite={(turnId, n) => setSelection({ turnId, n })}
+        onCite={(turnId, n) => {
+          setSelection({ turnId, n })
+          setSourcesClosed(false)
+        }}
+        sources={{ count: sourceCount, open: sourcesOpen, toggle: () => setSourcesClosed((v) => !v) }}
       />
       <Sources
         turn={selectedTurn}
         n={selectedN}
         onSelect={(n) => selectedTurn && setSelection({ turnId: selectedTurn.id, n })}
+        onClose={() => setSourcesClosed(true)}
       />
       <Confirm
         request={confirm}
@@ -229,4 +246,23 @@ function Chat({ user, onSignOut, onSessionEnded }) {
       />
     </div>
   )
+}
+
+// A per-browser preference: storage may be unavailable (private mode), so fall back silently.
+const SOURCES_KEY = 'freddie.sources.closed'
+
+function readFlag(key) {
+  try {
+    return localStorage.getItem(key) === '1'
+  } catch {
+    return false
+  }
+}
+
+function writeFlag(key, on) {
+  try {
+    localStorage.setItem(key, on ? '1' : '0')
+  } catch {
+    // not saved: the panel just opens again next time
+  }
 }
