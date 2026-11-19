@@ -66,7 +66,7 @@ export default function Sources({ turn, n, onSelect, onClose }) {
   }
 
   return (
-    <aside className={'sources' + (cites.length ? '' : ' idle')}>
+    <aside className="sources">
       <header className="bar">
         <h2>Sources</h2>
         <span className="muted small">{count}</span>
