@@ -170,6 +170,8 @@ function Chat({ user, onSignOut, onSessionEnded }) {
 
   return (
     <div className={'app' + (collapsed ? ' collapsed' : '')}>
+      {/* narrow screens: the open sidebar is a drawer over the chat; a tap outside closes it */}
+      {!collapsed && <div className="scrim" onClick={() => setCollapsed(true)} aria-hidden="true" />}
       <Sidebar
         user={user}
         onSignOut={() =>

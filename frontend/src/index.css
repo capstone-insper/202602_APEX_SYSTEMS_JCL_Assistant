@@ -876,6 +876,24 @@ pre {
     border-right: 1px solid #000;
   }
 
+  .scrim {
+    position: fixed;
+    inset: 0;
+    z-index: 9;
+    background: rgba(13, 27, 28, 0.45);
+  }
+
+  /* the open sidebar is fixed, out of the grid: without this the thread falls into the 44px column */
+  .thread {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .sources {
+    grid-column: 2;
+    grid-row: 2;
+  }
+
   .turns,
   .composer {
     padding-left: 10px;
@@ -944,6 +962,16 @@ pre {
 .btn.danger:hover:not(:disabled) {
   border-color: #8a1c14;
   background: #8a1c14;
+}
+
+.scrim {
+  display: none;
+}
+
+@media (max-width: 760px) {
+  .scrim {
+    display: block;
+  }
 }
 
 /* sign-in */
