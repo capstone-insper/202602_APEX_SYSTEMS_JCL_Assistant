@@ -1248,3 +1248,8 @@ pre {
 .demo-a .demo-nf {
   color: #f0d58a;
 }
+
+/* a long snippet line scrolls inside its box instead of widening the panel */
+.source-detail > * {
+  min-width: 0;
+}
