@@ -4,6 +4,7 @@ import { isLogLine } from '../chats.js'
 import { detect, findCodes } from '../detect.js'
 import { asText, LIST_RE, runs, seconds } from '../format.js'
 import { firstName, greeting } from '../greeting.js'
+import { notFoundTitle } from '../notFound.js'
 import { Mark } from './Brand.jsx'
 import { DetectedTags } from './Tags.jsx'
 
@@ -117,7 +118,7 @@ function Turn({ turn, activeN, onCite, onRetry }) {
           </button>
         </div>
       )}
-      {status === 'done' && <Answer question={question} result={result} activeN={activeN} onCite={onCite} />}
+      {status === 'done' && <Answer id={turn.id} question={question} result={result} activeN={activeN} onCite={onCite} />}
       {status === 'done' && <AnswerFoot question={question} result={result} ms={turn.ms} />}
     </article>
   )
@@ -173,7 +174,7 @@ function Loading({ question }) {
   )
 }
 
-function Answer({ question, result, activeN, onCite }) {
+function Answer({ id, question, result, activeN, onCite }) {
   const found = detect(question, result.codes, result.citations)
   if (isNotFound(result)) {
     return (
@@ -184,8 +185,7 @@ function Answer({ question, result, activeN, onCite }) {
         <div className="answer-body">
           <DetectedTags {...found} />
           <div className="notice warn">
-            <strong>I won’t guess on this one.</strong> The CardDemo JCL and the IBM MVS manuals don’t cover it, so
-            there is no answer rather than a made-up one.
+            <strong>{notFoundTitle(id)}</strong> The IBM MVS manuals and the CardDemo JCL don’t cover this.
           </div>
           <p className="muted small">Try the job log, an abend code (S0C7, S806, S322) or a message id (IEF450I).</p>
         </div>

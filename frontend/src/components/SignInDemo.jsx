@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import Typed from 'typed.js'
+import { NOT_FOUND_TITLES } from '../notFound.js'
 import { Mark } from './Brand.jsx'
 
 // Sign-in screen showcase: a question is typed, then its answer appears, through a few fixed
@@ -32,7 +33,7 @@ const EXAMPLES = [
   {
     q: 'How do I write a REXX exec that lists my data sets?',
     codes: [],
-    a: 'Not in the manuals or the CardDemo JCL, so I won’t guess.',
+    a: NOT_FOUND_TITLES[Math.floor(Math.random() * NOT_FOUND_TITLES.length)], // one per page load
     source: null,
   },
 ]
