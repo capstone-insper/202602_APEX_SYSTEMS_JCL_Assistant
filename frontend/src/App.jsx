@@ -223,7 +223,7 @@ function Chat({ user, onSignOut, onSessionEnded }) {
         chat={chat}
         meta={chat ? chatMeta(chat) : null}
         busy={busy}
-        selection={selectedTurn && { turnId: selectedTurn.id, n: selectedN }}
+        selection={sourcesOpen ? { turnId: selectedTurn.id, n: selectedN } : null} // no citation marked as shown while the panel is closed
         onSend={send}
         onRetry={retry}
         onCite={(turnId, n) => {
